@@ -1,73 +1,38 @@
 import express from 'express';
 import cors from 'cors';
-import Database from 'better-sqlite3';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import jwt from 'jsonwebtoken';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { MongoClient, ObjectId } from 'mongodb';
 
 const PORT = process.env.PORT || 4000;
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data.sqlite');
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || '';
 const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || '';
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const BACKEND_URL = process.env.BACKEND_URL || `http://localhost:${PORT}`;
-
-const db = new Database(DB_PATH);
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    github_id INTEGER UNIQUE,
-    login TEXT NOT NULL,
-    avatar_url TEXT,
-    name TEXT,
-    github_token TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS projects (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    owner TEXT NOT NULL,
-    repo TEXT NOT NULL,
-    created_by INTEGER NOT NULL,
-    created_at TEXT DEFAULT (datetime('now')),
-    UNIQUE(owner, repo),
-    FOREIGN KEY(created_by) REFERENCES users(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS kudos (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    project_id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    handle TEXT,
-    tag TEXT NOT NULL,
-    message TEXT NOT NULL,
-    boosts INTEGER DEFAULT 0,
-    created_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY(project_id) REFERENCES projects(id)
-  );
-`);
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017';
+const MONGODB_DB = process.env.MONGODB_DB || 'gratitude_wall';
 
 const app = express();
 app.use(cors({ origin: CORS_ORIGIN === '*' ? '*' : CORS_ORIGIN.split(','), credentials: true }));
 app.use(express.json({ limit: '1mb' }));
 
+let db;
+let usersCollection;
+let projectsCollection;
+let kudosCollection;
+
 function signToken(user) {
-  return jwt.sign({ id: user.id, login: user.login }, JWT_SECRET, { expiresIn: '7d' });
+  return jwt.sign({ id: user._id.toString(), login: user.login }, JWT_SECRET, { expiresIn: '7d' });
 }
 
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    const user = db.prepare('SELECT id, login, avatar_url, name, github_token FROM users WHERE id = ?').get(decoded.id);
+    const user = await usersCollection.findOne({ _id: new ObjectId(decoded.id) });
     if (!user) return res.status(401).json({ error: 'Unauthorized' });
     req.user = user;
     return next();
@@ -138,14 +103,21 @@ app.get('/auth/github/callback', ensureAuthConfig, async (req, res) => {
     const accessToken = await exchangeCode(code);
     const profile = await githubRequest('/user', accessToken);
 
-    const stmt = db.prepare(`
-      INSERT INTO users (github_id, login, avatar_url, name, github_token)
-      VALUES (?, ?, ?, ?, ?)
-      ON CONFLICT(github_id) DO UPDATE SET login=excluded.login, avatar_url=excluded.avatar_url, name=excluded.name, github_token=excluded.github_token
-    `);
-    stmt.run(profile.id, profile.login, profile.avatar_url, profile.name || '', accessToken);
+    await usersCollection.updateOne(
+      { github_id: profile.id },
+      {
+        $set: {
+          login: profile.login,
+          avatar_url: profile.avatar_url,
+          name: profile.name || '',
+          github_token: accessToken,
+        },
+        $setOnInsert: { created_at: new Date() },
+      },
+      { upsert: true }
+    );
 
-    const user = db.prepare('SELECT * FROM users WHERE github_id = ?').get(profile.id);
+    const user = await usersCollection.findOne({ github_id: profile.id });
     const token = signToken(user);
 
     const redirect = typeof state === 'string' ? decodeURIComponent(state) : `${FRONTEND_URL}/auth/callback`;
@@ -170,61 +142,65 @@ app.post('/projects', authMiddleware, async (req, res) => {
     await ensureMaintainer(req.user, owner, repo);
     const repoInfo = await githubRequest(`/repos/${owner}/${repo}`, req.user.github_token);
 
-    const insert = db.prepare(`
-      INSERT INTO projects (owner, repo, created_by)
-      VALUES (?, ?, ?)
-      ON CONFLICT(owner, repo) DO NOTHING
-    `);
-    insert.run(repoInfo.owner.login, repoInfo.name, req.user.id);
+    await projectsCollection.updateOne(
+      { owner: repoInfo.owner.login, repo: repoInfo.name },
+      {
+        $setOnInsert: {
+          owner: repoInfo.owner.login,
+          repo: repoInfo.name,
+          created_by: req.user._id,
+          created_at: new Date(),
+        },
+      },
+      { upsert: true }
+    );
 
-    const project = db.prepare('SELECT * FROM projects WHERE owner = ? AND repo = ?').get(repoInfo.owner.login, repoInfo.name);
-    res.json(project);
+    const project = await projectsCollection.findOne({ owner: repoInfo.owner.login, repo: repoInfo.name });
+    res.json({ id: project._id.toString(), owner: project.owner, repo: project.repo });
   } catch (err) {
     res.status(500).json({ error: err.message || 'Unable to create project.' });
   }
 });
 
-app.get('/projects/:owner/:repo', (req, res) => {
+app.get('/projects/:owner/:repo', async (req, res) => {
   const { owner, repo } = req.params;
-  const project = db.prepare('SELECT * FROM projects WHERE owner = ? AND repo = ?').get(owner, repo);
+  const project = await projectsCollection.findOne({ owner, repo });
   if (!project) return res.status(404).json({ error: 'Not found' });
-  res.json(project);
+  res.json({ id: project._id.toString(), owner: project.owner, repo: project.repo });
 });
 
-app.get('/projects/:owner/:repo/kudos', (req, res) => {
+app.get('/projects/:owner/:repo/kudos', async (req, res) => {
   const { owner, repo } = req.params;
   const { sort = 'recent', tag, query } = req.query;
-  const project = db.prepare('SELECT * FROM projects WHERE owner = ? AND repo = ?').get(owner, repo);
+  const project = await projectsCollection.findOne({ owner, repo });
   if (!project) return res.json([]);
 
-  const clauses = ['project_id = ?'];
-  const params = [project.id];
-
-  if (tag) {
-    clauses.push('tag = ?');
-    params.push(tag);
-  }
-
+  const filter = { project_id: project._id };
+  if (tag) filter.tag = tag;
   if (query) {
-    clauses.push('(name LIKE ? OR handle LIKE ? OR message LIKE ?)');
-    const pattern = `%${query}%`;
-    params.push(pattern, pattern, pattern);
+    const pattern = new RegExp(query, 'i');
+    filter.$or = [{ name: pattern }, { handle: pattern }, { message: pattern }];
   }
 
-  const where = `WHERE ${clauses.join(' AND ')}`;
-  const order = sort === 'top'
-    ? 'ORDER BY boosts DESC, datetime(created_at) DESC'
-    : 'ORDER BY datetime(created_at) DESC';
+  const sortOrder = sort === 'top'
+    ? { boosts: -1, created_at: -1 }
+    : { created_at: -1 };
 
-  const rows = db.prepare(`
-    SELECT id, name, handle, tag, message, boosts, created_at
-    FROM kudos
-    ${where}
-    ${order}
-    LIMIT 120
-  `).all(...params);
+  const rows = await kudosCollection
+    .find(filter)
+    .sort(sortOrder)
+    .limit(120)
+    .toArray();
 
-  res.json(rows);
+  res.json(rows.map((row) => ({
+    id: row._id.toString(),
+    name: row.name,
+    handle: row.handle,
+    tag: row.tag,
+    message: row.message,
+    boosts: row.boosts,
+    created_at: row.created_at,
+  })));
 });
 
 app.post('/projects/:owner/:repo/kudos', authMiddleware, async (req, res) => {
@@ -232,7 +208,7 @@ app.post('/projects/:owner/:repo/kudos', authMiddleware, async (req, res) => {
   const { name, handle = '', tag = 'docs', message } = req.body || {};
   if (!name || !message) return res.status(400).json({ error: 'name and message required.' });
 
-  const project = db.prepare('SELECT * FROM projects WHERE owner = ? AND repo = ?').get(owner, repo);
+  const project = await projectsCollection.findOne({ owner, repo });
   if (!project) return res.status(404).json({ error: 'Project not found.' });
 
   try {
@@ -241,45 +217,96 @@ app.post('/projects/:owner/:repo/kudos', authMiddleware, async (req, res) => {
     return res.status(403).json({ error: err.message });
   }
 
-  const stmt = db.prepare(`
-    INSERT INTO kudos (project_id, name, handle, tag, message, boosts)
-    VALUES (?, ?, ?, ?, ?, 0)
-  `);
-  const info = stmt.run(project.id, name.slice(0, 80), handle.slice(0, 40), tag.slice(0, 30), message.slice(0, 400));
-  const row = db.prepare('SELECT * FROM kudos WHERE id = ?').get(info.lastInsertRowid);
-  res.status(201).json(row);
-});
+  const doc = {
+    project_id: project._id,
+    name: name.slice(0, 80),
+    handle: handle.slice(0, 40),
+    tag: tag.slice(0, 30),
+    message: message.slice(0, 400),
+    boosts: 0,
+    created_at: new Date(),
+  };
 
-app.post('/projects/:owner/:repo/kudos/:id/boost', (req, res) => {
-  const { owner, repo, id } = req.params;
-  const project = db.prepare('SELECT * FROM projects WHERE owner = ? AND repo = ?').get(owner, repo);
-  if (!project) return res.status(404).json({ error: 'Project not found.' });
-
-  const stmt = db.prepare('UPDATE kudos SET boosts = boosts + 1 WHERE id = ? AND project_id = ?');
-  const info = stmt.run(id, project.id);
-  if (info.changes === 0) return res.status(404).json({ error: 'Not found' });
-  const row = db.prepare('SELECT * FROM kudos WHERE id = ?').get(id);
-  res.json(row);
-});
-
-app.get('/projects/:owner/:repo/stats', (req, res) => {
-  const { owner, repo } = req.params;
-  const project = db.prepare('SELECT * FROM projects WHERE owner = ? AND repo = ?').get(owner, repo);
-  if (!project) return res.json({ totalKudos: 0, totalContributors: 0, topTag: null, weekCount: 0 });
-
-  const totalKudos = db.prepare('SELECT COUNT(*) as count FROM kudos WHERE project_id = ?').get(project.id).count;
-  const totalContributors = db.prepare('SELECT COUNT(DISTINCT name || handle) as count FROM kudos WHERE project_id = ?').get(project.id).count;
-  const topTagRow = db.prepare('SELECT tag, COUNT(*) as count FROM kudos WHERE project_id = ? GROUP BY tag ORDER BY count DESC LIMIT 1').get(project.id);
-  const weekCount = db.prepare("SELECT COUNT(*) as count FROM kudos WHERE project_id = ? AND datetime(created_at) >= datetime('now','-7 days')").get(project.id).count;
-
-  res.json({
-    totalKudos,
-    totalContributors,
-    topTag: topTagRow?.tag || null,
-    weekCount,
+  const result = await kudosCollection.insertOne(doc);
+  res.status(201).json({
+    id: result.insertedId.toString(),
+    name: doc.name,
+    handle: doc.handle,
+    tag: doc.tag,
+    message: doc.message,
+    boosts: doc.boosts,
+    created_at: doc.created_at,
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Gratitude Wall API running on ${PORT}`);
+app.post('/projects/:owner/:repo/kudos/:id/boost', async (req, res) => {
+  const { owner, repo, id } = req.params;
+  const project = await projectsCollection.findOne({ owner, repo });
+  if (!project) return res.status(404).json({ error: 'Project not found' });
+
+  const updated = await kudosCollection.findOneAndUpdate(
+    { _id: new ObjectId(id), project_id: project._id },
+    { $inc: { boosts: 1 } },
+    { returnDocument: 'after' }
+  );
+
+  if (!updated.value) return res.status(404).json({ error: 'Not found' });
+  res.json({
+    id: updated.value._id.toString(),
+    name: updated.value.name,
+    handle: updated.value.handle,
+    tag: updated.value.tag,
+    message: updated.value.message,
+    boosts: updated.value.boosts,
+    created_at: updated.value.created_at,
+  });
+});
+
+app.get('/projects/:owner/:repo/stats', async (req, res) => {
+  const { owner, repo } = req.params;
+  const project = await projectsCollection.findOne({ owner, repo });
+  if (!project) return res.json({ totalKudos: 0, totalContributors: 0, topTag: null, weekCount: 0 });
+
+  const totalKudos = await kudosCollection.countDocuments({ project_id: project._id });
+  const totalContributorsAgg = await kudosCollection.aggregate([
+    { $match: { project_id: project._id } },
+    { $group: { _id: { name: '$name', handle: '$handle' } } },
+    { $count: 'count' },
+  ]).toArray();
+  const totalContributors = totalContributorsAgg[0]?.count || 0;
+
+  const topTagAgg = await kudosCollection.aggregate([
+    { $match: { project_id: project._id } },
+    { $group: { _id: '$tag', count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+    { $limit: 1 },
+  ]).toArray();
+  const topTag = topTagAgg[0]?._id || null;
+
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const weekCount = await kudosCollection.countDocuments({ project_id: project._id, created_at: { $gte: since } });
+
+  res.json({ totalKudos, totalContributors, topTag, weekCount });
+});
+
+async function start() {
+  const client = new MongoClient(MONGODB_URI);
+  await client.connect();
+  db = client.db(MONGODB_DB);
+  usersCollection = db.collection('users');
+  projectsCollection = db.collection('projects');
+  kudosCollection = db.collection('kudos');
+
+  await usersCollection.createIndex({ github_id: 1 }, { unique: true });
+  await projectsCollection.createIndex({ owner: 1, repo: 1 }, { unique: true });
+  await kudosCollection.createIndex({ project_id: 1, created_at: -1 });
+
+  app.listen(PORT, () => {
+    console.log(`Gratitude Wall API running on ${PORT}`);
+  });
+}
+
+start().catch((err) => {
+  console.error('Failed to start server', err);
+  process.exit(1);
 });

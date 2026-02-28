@@ -20,4 +20,4 @@ Backend:
 3. npm run dev
 
 ## Env
-See `server/.env.example` for backend envs. Frontend uses `VITE_API_URL`.
+Backend uses MongoDB. See `server/.env.example` for required vars. Frontend uses `VITE_API_URL`.
