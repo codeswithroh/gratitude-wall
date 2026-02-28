@@ -32,6 +32,12 @@ const BACKGROUNDS = [
   { id: 'neon', label: 'Neon' },
 ];
 
+const PALETTES = [
+  { id: 'warm-sunrise', label: 'Warm Sunrise', accent: '#ff6a3d', titleColor: '#161515', subtitleColor: '#5d5a56', cardTextColor: '#161515', cardSubtextColor: '#5d5a56' },
+  { id: 'midnight-neon', label: 'Midnight Neon', accent: '#6f5cff', titleColor: '#f5f5f5', subtitleColor: '#c5c5c5', cardTextColor: '#f5f5f5', cardSubtextColor: '#c5c5c5' },
+  { id: 'ocean-mist', label: 'Ocean Mist', accent: '#2b7a78', titleColor: '#113d3b', subtitleColor: '#5d5a56', cardTextColor: '#161515', cardSubtextColor: '#5d5a56' },
+];
+
 function formatDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
@@ -555,6 +561,28 @@ function ProjectWall({ project, token, user, onLogout }) {
     }, 400);
   };
 
+  const resetColors = () => {
+    updateSettings({
+      ...settings,
+      titleColor: '#161515',
+      subtitleColor: '#5d5a56',
+      cardTextColor: '#161515',
+      cardSubtextColor: '#5d5a56',
+      accent: '#ff6a3d',
+    });
+  };
+
+  const applyPalette = (palette) => {
+    updateSettings({
+      ...settings,
+      accent: palette.accent,
+      titleColor: palette.titleColor,
+      subtitleColor: palette.subtitleColor,
+      cardTextColor: palette.cardTextColor,
+      cardSubtextColor: palette.cardSubtextColor,
+    });
+  };
+
   useEffect(() => {
     setSnapshotLoading(true);
   }, [snapshotUrl]);
@@ -590,7 +618,7 @@ function ProjectWall({ project, token, user, onLogout }) {
 
   return (
     <div
-      className={`project wall-bg-${settings.background}`}
+      className="project"
       style={{
         '--accent': settings.accent,
         '--card-text': settings.cardTextColor,
@@ -650,6 +678,21 @@ function ProjectWall({ project, token, user, onLogout }) {
               <p>Pick a theme, accent, and layout that fits your community.</p>
             </div>
             <div className="customize-controls">
+              <div className="custom-group">
+                <div className="custom-label">Presets</div>
+                <div className="custom-options">
+                  {PALETTES.map((palette) => (
+                    <button
+                      key={palette.id}
+                      className="pill-btn"
+                      onClick={() => applyPalette(palette)}
+                    >
+                      {palette.label}
+                    </button>
+                  ))}
+                  <button className="ghost" onClick={resetColors}>Reset colors</button>
+                </div>
+              </div>
               <div className="custom-group">
                 <div className="custom-label">Theme (snapshot only)</div>
                 <div className="custom-options">
