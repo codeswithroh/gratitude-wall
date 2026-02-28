@@ -488,6 +488,31 @@ textarea {
   gap: 40px;
 }
 
+.tabs {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: #fff;
+  padding: 10px;
+  border-radius: 999px;
+  border: 1px solid var(--stroke);
+  width: fit-content;
+}
+
+.tab-btn {
+  border: none;
+  background: transparent;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  background: var(--accent, var(--brand));
+  color: #fff;
+}
+
 .project.wall-bg-sunset {
   background: linear-gradient(160deg, #fff2e9 0%, #f9efe4 60%, #fff 100%);
   border-radius: 28px;

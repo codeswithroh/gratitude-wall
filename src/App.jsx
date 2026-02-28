@@ -362,6 +362,7 @@ function ProjectWall({ project, token, user, onLogout }) {
   const [order, setOrder] = useState([]);
   const [settings, setSettings] = useState({ theme: 'warm', accent: '#ff6a3d', layout: 'masonry', background: 'sunset' });
   const [featuredIds, setFeaturedIds] = useState([]);
+  const [tab, setTab] = useState('overview');
 
   const key = `${project.owner}/${project.repo}`;
   const wallUrl = `${window.location.origin}/p/${project.owner}/${project.repo}`;
@@ -581,251 +582,265 @@ function ProjectWall({ project, token, user, onLogout }) {
         </div>
       </header>
 
-      <section className="share-link">
-        <div>
-          <h3>Shareable Wall Link</h3>
-          <p>Use this link to share the wall or drop the snapshot into your README.</p>
-        </div>
-        <div className="link-box">
-          <div className="link-row">
-            <span>{wallUrl}</span>
-            <button className="secondary" onClick={() => copyText(wallUrl)}>Copy link</button>
-          </div>
-          <div className="link-row">
-            <span>{`![Gratitude Wall](${snapshotUrl})`}</span>
-            <button className="secondary" onClick={() => copyText(`![Gratitude Wall](${snapshotUrl})`)}>Copy README</button>
-          </div>
-        </div>
-        <div className="snapshot-preview">
-          <img src={snapshotUrl} alt="Wall snapshot" />
-        </div>
-      </section>
+      <div className="tabs">
+        <button className={`tab-btn ${tab === 'overview' ? 'active' : ''}`} onClick={() => setTab('overview')}>Overview</button>
+        <button className={`tab-btn ${tab === 'wall' ? 'active' : ''}`} onClick={() => setTab('wall')}>Wall</button>
+        <button className={`tab-btn ${tab === 'shoutouts' ? 'active' : ''}`} onClick={() => setTab('shoutouts')}>Shoutouts</button>
+      </div>
 
-      <section className="customize">
-        <div>
-          <h3>Customize your wall</h3>
-          <p>Pick a theme, accent, and layout that fits your community.</p>
-        </div>
-        <div className="customize-controls">
-          <div className="custom-group">
-            <div className="custom-label">Theme</div>
-            <div className="custom-options">
-              {THEME_OPTIONS.map((opt) => (
-                <button
-                  key={opt.id}
-                  className={`pill-btn ${settings.theme === opt.id ? 'active' : ''}`}
-                  onClick={() => updateSettings({ ...settings, theme: opt.id })}
-                >
-                  {opt.label}
-                </button>
-              ))}
+      {tab === 'overview' && (
+        <>
+          <section className="share-link">
+            <div>
+              <h3>Shareable Wall Link</h3>
+              <p>Use this link to share the wall or drop the snapshot into your README.</p>
             </div>
+            <div className="link-box">
+              <div className="link-row">
+                <span>{wallUrl}</span>
+                <button className="secondary" onClick={() => copyText(wallUrl)}>Copy link</button>
+              </div>
+              <div className="link-row">
+                <span>{`![Gratitude Wall](${snapshotUrl})`}</span>
+                <button className="secondary" onClick={() => copyText(`![Gratitude Wall](${snapshotUrl})`)}>Copy README</button>
+              </div>
+            </div>
+            <div className="snapshot-preview">
+              <img src={snapshotUrl} alt="Wall snapshot" />
+            </div>
+          </section>
+
+          <section className="customize">
+            <div>
+              <h3>Customize your wall</h3>
+              <p>Pick a theme, accent, and layout that fits your community.</p>
+            </div>
+            <div className="customize-controls">
+              <div className="custom-group">
+                <div className="custom-label">Theme</div>
+                <div className="custom-options">
+                  {THEME_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.id}
+                      className={`pill-btn ${settings.theme === opt.id ? 'active' : ''}`}
+                      onClick={() => updateSettings({ ...settings, theme: opt.id })}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="custom-group">
+                <div className="custom-label">Accent</div>
+                <div className="custom-options">
+                  {ACCENTS.map((color) => (
+                    <button
+                      key={color}
+                      className={`color-swatch ${settings.accent === color ? 'active' : ''}`}
+                      style={{ background: color }}
+                      onClick={() => updateSettings({ ...settings, accent: color })}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="custom-group">
+                <div className="custom-label">Layout</div>
+                <div className="custom-options">
+                  {LAYOUTS.map((layout) => (
+                    <button
+                      key={layout.id}
+                      className={`pill-btn ${settings.layout === layout.id ? 'active' : ''}`}
+                      onClick={() => updateSettings({ ...settings, layout: layout.id })}
+                    >
+                      {layout.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="custom-group">
+                <div className="custom-label">Background</div>
+                <div className="custom-options">
+                  {BACKGROUNDS.map((bg) => (
+                    <button
+                      key={bg.id}
+                      className={`pill-btn ${settings.background === bg.id ? 'active' : ''}`}
+                      onClick={() => updateSettings({ ...settings, background: bg.id })}
+                    >
+                      {bg.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="stats">
+            <div className="stat-card">
+              <div className="stat-label">Kudos Given</div>
+              <div className="stat-value">{stats?.totalKudos ?? '—'}</div>
+              <div className="stat-meta">This week: {stats?.weekCount ?? '—'}</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Contributors Celebrated</div>
+              <div className="stat-value">{stats?.totalContributors ?? '—'}</div>
+              <div className="stat-meta">Maintainers only</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Top Impact Tag</div>
+              <div className="stat-value">#{stats?.topTag ?? '—'}</div>
+              <div className="stat-meta">Community theme</div>
+            </div>
+          </section>
+        </>
+      )}
+
+      {tab === 'shoutouts' && (
+        <section className="share">
+          <div>
+            <h2>Send a shoutout</h2>
+            <p>Only maintainers can post. That keeps every note authentic.</p>
           </div>
-          <div className="custom-group">
-            <div className="custom-label">Accent</div>
-            <div className="custom-options">
-              {ACCENTS.map((color) => (
-                <button
-                  key={color}
-                  className={`color-swatch ${settings.accent === color ? 'active' : ''}`}
-                  style={{ background: color }}
-                  onClick={() => updateSettings({ ...settings, accent: color })}
+          <form className="share-form" onSubmit={handleSubmit}>
+            <div className="form-row">
+              <label>
+                Contributor Name
+                <input
+                  value={form.name}
+                  onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+                  placeholder="e.g. Priya Singh"
+                  required
+                  disabled={!token}
                 />
-              ))}
+              </label>
+              <label>
+                Handle (optional)
+                <input
+                  value={form.handle}
+                  onChange={(event) => setForm((prev) => ({ ...prev, handle: event.target.value }))}
+                  placeholder="@priya"
+                  disabled={!token}
+                />
+              </label>
             </div>
-          </div>
-          <div className="custom-group">
-            <div className="custom-label">Layout</div>
-            <div className="custom-options">
-              {LAYOUTS.map((layout) => (
-                <button
-                  key={layout.id}
-                  className={`pill-btn ${settings.layout === layout.id ? 'active' : ''}`}
-                  onClick={() => updateSettings({ ...settings, layout: layout.id })}
+            <div className="form-row">
+              <label>
+                Impact Tag
+                <select
+                  value={form.tag}
+                  onChange={(event) => setForm((prev) => ({ ...prev, tag: event.target.value }))}
+                  disabled={!token}
                 >
-                  {layout.label}
-                </button>
-              ))}
+                  {TAGS.map((tag) => (
+                    <option key={tag} value={tag}>
+                      #{tag}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
-          </div>
-          <div className="custom-group">
-            <div className="custom-label">Background</div>
-            <div className="custom-options">
-              {BACKGROUNDS.map((bg) => (
-                <button
-                  key={bg.id}
-                  className={`pill-btn ${settings.background === bg.id ? 'active' : ''}`}
-                  onClick={() => updateSettings({ ...settings, background: bg.id })}
-                >
-                  {bg.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="stats">
-        <div className="stat-card">
-          <div className="stat-label">Kudos Given</div>
-          <div className="stat-value">{stats?.totalKudos ?? '—'}</div>
-          <div className="stat-meta">This week: {stats?.weekCount ?? '—'}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Contributors Celebrated</div>
-          <div className="stat-value">{stats?.totalContributors ?? '—'}</div>
-          <div className="stat-meta">Maintainers only</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Top Impact Tag</div>
-          <div className="stat-value">#{stats?.topTag ?? '—'}</div>
-          <div className="stat-meta">Community theme</div>
-        </div>
-      </section>
-
-      <section className="share">
-        <div>
-          <h2>Send a shoutout</h2>
-          <p>Only maintainers can post. That keeps every note authentic.</p>
-        </div>
-        <form className="share-form" onSubmit={handleSubmit}>
-          <div className="form-row">
             <label>
-              Contributor Name
-              <input
-                value={form.name}
-                onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
-                placeholder="e.g. Priya Singh"
+              Message
+              <textarea
+                rows="4"
+                value={form.message}
+                onChange={(event) => setForm((prev) => ({ ...prev, message: event.target.value }))}
+                placeholder="Tell them exactly what you appreciated…"
                 required
                 disabled={!token}
               />
             </label>
-            <label>
-              Handle (optional)
+            <button className="primary" type="submit" disabled={saving || !token}>
+              {saving ? 'Sending…' : token ? 'Send Kudos' : 'Login to Post'}
+            </button>
+          </form>
+          {error && <div className="error">{error}</div>}
+        </section>
+      )}
+
+      {tab === 'wall' && (
+        <section className="wall">
+          <div className="wall-header">
+            <div>
+              <h2>Gratitude Wall</h2>
+              <p>Drag to arrange when in arrange mode. Pin highlights to feature them in the snapshot.</p>
+            </div>
+            <div className="wall-controls">
               <input
-                value={form.handle}
-                onChange={(event) => setForm((prev) => ({ ...prev, handle: event.target.value }))}
-                placeholder="@priya"
-                disabled={!token}
+                placeholder="Search by name or message"
+                value={filters.query}
+                onChange={(event) => setFilters((prev) => ({ ...prev, query: event.target.value }))}
               />
-            </label>
-          </div>
-          <div className="form-row">
-            <label>
-              Impact Tag
               <select
-                value={form.tag}
-                onChange={(event) => setForm((prev) => ({ ...prev, tag: event.target.value }))}
-                disabled={!token}
+                value={filters.tag}
+                onChange={(event) => setFilters((prev) => ({ ...prev, tag: event.target.value }))}
               >
+                <option value="all">All tags</option>
                 {TAGS.map((tag) => (
                   <option key={tag} value={tag}>
                     #{tag}
                   </option>
                 ))}
               </select>
-            </label>
+              <select
+                value={filters.sort}
+                onChange={(event) => setFilters((prev) => ({ ...prev, sort: event.target.value }))}
+              >
+                <option value="recent">Most recent</option>
+                <option value="top">Most cheered</option>
+              </select>
+            </div>
           </div>
-          <label>
-            Message
-            <textarea
-              rows="4"
-              value={form.message}
-              onChange={(event) => setForm((prev) => ({ ...prev, message: event.target.value }))}
-              placeholder="Tell them exactly what you appreciated…"
-              required
-              disabled={!token}
-            />
-          </label>
-          <button className="primary" type="submit" disabled={saving || !token}>
-            {saving ? 'Sending…' : token ? 'Send Kudos' : 'Login to Post'}
-          </button>
-        </form>
-        {error && <div className="error">{error}</div>}
-      </section>
 
-      <section className="wall">
-        <div className="wall-header">
-          <div>
-            <h2>Gratitude Wall</h2>
-            <p>Drag to arrange when in arrange mode. Pin highlights to feature them in the snapshot.</p>
-          </div>
-          <div className="wall-controls">
-            <input
-              placeholder="Search by name or message"
-              value={filters.query}
-              onChange={(event) => setFilters((prev) => ({ ...prev, query: event.target.value }))}
-            />
-            <select
-              value={filters.tag}
-              onChange={(event) => setFilters((prev) => ({ ...prev, tag: event.target.value }))}
-            >
-              <option value="all">All tags</option>
-              {TAGS.map((tag) => (
-                <option key={tag} value={tag}>
-                  #{tag}
-                </option>
-              ))}
-            </select>
-            <select
-              value={filters.sort}
-              onChange={(event) => setFilters((prev) => ({ ...prev, sort: event.target.value }))}
-            >
-              <option value="recent">Most recent</option>
-              <option value="top">Most cheered</option>
-            </select>
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="empty">Loading gratitude…</div>
-        ) : orderedKudos.length === 0 ? (
-          <div className="empty">No kudos yet. Maintainers can add the first.</div>
-        ) : (
-          <div className={`card-grid ${arrange ? 'arrange' : ''} ${settings.layout === 'compact' ? 'compact' : ''}`}>
-            {orderedKudos.map((entry) => {
-              const isFeatured = featuredIds.includes(entry.id);
-              return (
-                <article
-                  key={entry.id}
-                  className={`kudos-card ${isFeatured ? 'featured' : ''}`}
-                  draggable={arrange}
-                  onDragStart={(event) => handleDrag(event, entry.id)}
-                  onDragOver={(event) => arrange && event.preventDefault()}
-                  onDrop={(event) => handleDrop(event, entry.id)}
-                >
-                  <div className="card-top">
-                    <div>
-                      <h3>{entry.name}</h3>
-                      <p className="card-handle">{entry.handle || 'Contributor'}</p>
+          {loading ? (
+            <div className="empty">Loading gratitude…</div>
+          ) : orderedKudos.length === 0 ? (
+            <div className="empty">No kudos yet. Maintainers can add the first.</div>
+          ) : (
+            <div className={`card-grid ${arrange ? 'arrange' : ''} ${settings.layout === 'compact' ? 'compact' : ''}`}>
+              {orderedKudos.map((entry) => {
+                const isFeatured = featuredIds.includes(entry.id);
+                return (
+                  <article
+                    key={entry.id}
+                    className={`kudos-card ${isFeatured ? 'featured' : ''}`}
+                    draggable={arrange}
+                    onDragStart={(event) => handleDrag(event, entry.id)}
+                    onDragOver={(event) => arrange && event.preventDefault()}
+                    onDrop={(event) => handleDrop(event, entry.id)}
+                  >
+                    <div className="card-top">
+                      <div>
+                        <h3>{entry.name}</h3>
+                        <p className="card-handle">{entry.handle || 'Contributor'}</p>
+                      </div>
+                      <span className="card-tag">#{entry.tag}</span>
                     </div>
-                    <span className="card-tag">#{entry.tag}</span>
-                  </div>
-                  <p className="card-message">“{entry.message}”</p>
-                  <div className="card-meta">
-                    <span>{formatDate(entry.created_at)}</span>
-                    <span>{spotlight?.id === entry.id ? 'Spotlight' : ''}</span>
-                  </div>
-                  <div className="card-actions">
-                    <button
-                      className="secondary"
-                      onClick={() => handleBoost(entry.id)}
-                      disabled={boosting === entry.id}
-                    >
-                      {boosting === entry.id ? 'Cheering…' : `Cheer (${entry.boosts})`}
-                    </button>
-                    {token && (
-                      <button className="ghost" onClick={() => toggleFeatured(entry.id)}>
-                        {isFeatured ? 'Unpin' : 'Pin'}
+                    <p className="card-message">“{entry.message}”</p>
+                    <div className="card-meta">
+                      <span>{formatDate(entry.created_at)}</span>
+                      <span>{spotlight?.id === entry.id ? 'Spotlight' : ''}</span>
+                    </div>
+                    <div className="card-actions">
+                      <button
+                        className="secondary"
+                        onClick={() => handleBoost(entry.id)}
+                        disabled={boosting === entry.id}
+                      >
+                        {boosting === entry.id ? 'Cheering…' : `Cheer (${entry.boosts})`}
                       </button>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-      </section>
+                      {token && (
+                        <button className="ghost" onClick={() => toggleFeatured(entry.id)}>
+                          {isFeatured ? 'Unpin' : 'Pin'}
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }
