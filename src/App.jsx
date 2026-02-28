@@ -13,6 +13,18 @@ const TAGS = [
   'testing',
 ];
 
+const THEME_OPTIONS = [
+  { id: 'warm', label: 'Warm' },
+  { id: 'midnight', label: 'Midnight' },
+];
+
+const ACCENTS = ['#ff6a3d', '#2b7a78', '#6f5cff', '#f4b400', '#ef476f'];
+
+const LAYOUTS = [
+  { id: 'masonry', label: 'Masonry' },
+  { id: 'compact', label: 'Compact' },
+];
+
 function formatDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
@@ -76,17 +88,52 @@ function useAuth() {
   return { token, setToken, user, logout, loadMe };
 }
 
-function Hero({ onConnect, user }) {
+function UserMenu({ user, onLogout }) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const onKey = (event) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  if (!user) return null;
+
+  return (
+    <div className="user-menu">
+      <button className="user-chip" onClick={() => setOpen((prev) => !prev)}>
+        <img src={user.avatar_url} alt={user.login} />
+        <span>@{user.login}</span>
+        <span className="caret">▾</span>
+      </button>
+      {open && (
+        <div className="user-modal" onClick={() => setOpen(false)}>
+          <div className="user-modal-card" onClick={(event) => event.stopPropagation()}>
+            <div className="user-modal-header">
+              <img src={user.avatar_url} alt={user.login} />
+              <div>
+                <div className="user-modal-title">Signed in as</div>
+                <div className="user-modal-login">@{user.login}</div>
+              </div>
+            </div>
+            <button className="primary" onClick={onLogout}>Log out</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Hero({ onConnect, user, onLogout }) {
   return (
     <header className="hero">
       <div className="hero-top">
         <span className="pill">Maintainer Verified</span>
         <div className="hero-actions">
           {user ? (
-            <div className="user-chip">
-              <img src={user.avatar_url} alt={user.login} />
-              <span>@{user.login}</span>
-            </div>
+            <UserMenu user={user} onLogout={onLogout} />
           ) : (
             <button className="primary" onClick={onConnect}>Connect GitHub</button>
           )}
@@ -187,84 +234,115 @@ function AuthCallback({ onToken, onConnect }) {
   );
 }
 
-function RepoPicker({ token, onConnect, onCreateWall, creating, error }) {
+function RepoPicker({ token, onConnect, onCreateWall, creating, error, user, onLogout }) {
   const [repos, setRepos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(null);
 
+  const loadRepos = async () => {
+    if (!token) return;
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/github/repos`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error('Unable to load repos');
+      const data = await response.json();
+      setRepos(data);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadRepos = async () => {
-      if (!token) return;
-      setLoading(true);
-      try {
-        const response = await fetch(`${API_BASE}/github/repos`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!response.ok) throw new Error('Unable to load repos');
-        const data = await response.json();
-        setRepos(data);
-      } catch {
-        // ignore
-      } finally {
-        setLoading(false);
-      }
-    };
     loadRepos();
   }, [token]);
 
   const filtered = repos.filter((repo) => repo.full_name.toLowerCase().includes(query.toLowerCase()));
 
   return (
-    <section className="share">
-      <div>
-        <h2>Create your project wall</h2>
-        <p>Pick a repo you maintain. We will generate a starter wall from the top contributors.</p>
-        {!token && <button className="primary" onClick={onConnect}>Connect GitHub</button>}
+    <section className="repo-stage">
+      <div className="repo-stage-header">
+        <div className="stepper">
+          <div className="step active">1. Connect to Git provider</div>
+          <div className={`step ${token ? 'active' : ''}`}>2. Select repository</div>
+          <div className={`step ${selected ? 'active' : ''}`}>3. Configure wall</div>
+        </div>
+        <div className="repo-stage-title">Let’s deploy your gratitude wall…</div>
+        <div className="repo-stage-actions">
+          {user ? (
+            <UserMenu user={user} onLogout={onLogout} />
+          ) : (
+            <button className="primary" onClick={onConnect}>Connect GitHub</button>
+          )}
+        </div>
       </div>
-      <div className="share-form">
-        <label>
-          Search your repos
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by repo name"
-            disabled={!token}
-          />
-        </label>
-        {loading && <div className="empty">Loading repos…</div>}
-        {!loading && token && (
-          <div className="repo-list">
-            {filtered.slice(0, 8).map((repo) => (
-              <button
-                key={repo.full_name}
-                className={`repo-card ${selected?.full_name === repo.full_name ? 'active' : ''}`}
-                onClick={() => setSelected(repo)}
-                type="button"
-              >
-                <div>
-                  <div className="repo-title">{repo.full_name}</div>
-                  <div className="repo-desc">{repo.description || 'No description'}</div>
-                </div>
-                <div className="repo-meta">★ {repo.stars}</div>
-              </button>
-            ))}
+
+      <div className="repo-stage-grid">
+        <div className="repo-panel">
+          <div className="repo-toolbar">
+            <div className="repo-search">
+              <span>🔎</span>
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search your repos"
+                disabled={!token}
+              />
+            </div>
+            <button className="ghost" onClick={loadRepos} disabled={!token || loading}>
+              {loading ? 'Refreshing…' : 'Refresh'}
+            </button>
           </div>
-        )}
-        <button
-          className="secondary"
-          onClick={() => selected && onCreateWall(selected.owner, selected.repo)}
-          disabled={creating || !selected}
-        >
-          {creating ? 'Creating…' : 'Create Wall'}
-        </button>
-        {error && <div className="error">{error}</div>}
+          {loading && <div className="repo-empty">Loading repos…</div>}
+          {!loading && token && (
+            <div className="repo-list-dark">
+              {filtered.slice(0, 10).map((repo) => (
+                <button
+                  key={repo.full_name}
+                  className={`repo-row ${selected?.full_name === repo.full_name ? 'active' : ''}`}
+                  onClick={() => setSelected(repo)}
+                  type="button"
+                >
+                  <div className="repo-row-main">
+                    <div className="repo-row-title">{repo.full_name}</div>
+                    <div className="repo-row-sub">{repo.language || '—'} • {repo.updated_at ? new Date(repo.updated_at).toLocaleDateString() : 'Updated recently'}</div>
+                  </div>
+                  <span className={`repo-badge ${repo.private ? 'private' : ''}`}>{repo.private ? 'Private' : 'Public'}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {!token && <div className="repo-empty">Connect GitHub to see your repositories.</div>}
+          {error && <div className="error">{error}</div>}
+        </div>
+
+        <div className="repo-preview">
+          <div className="preview-card">
+            <div className="preview-hero"></div>
+            <div className="preview-lines">
+              <div className="preview-line"></div>
+              <div className="preview-line"></div>
+              <div className="preview-line short"></div>
+            </div>
+          </div>
+          <button
+            className="primary"
+            onClick={() => selected && onCreateWall(selected.owner, selected.repo)}
+            disabled={creating || !selected}
+          >
+            {creating ? 'Creating…' : 'Create Wall'}
+          </button>
+        </div>
       </div>
     </section>
   );
 }
 
-function ProjectWall({ project, token, user }) {
+function ProjectWall({ project, token, user, onLogout }) {
   const [kudos, setKudos] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -275,6 +353,8 @@ function ProjectWall({ project, token, user }) {
   const [form, setForm] = useState({ name: '', handle: '', tag: 'docs', message: '' });
   const [arrange, setArrange] = useState(false);
   const [order, setOrder] = useState([]);
+  const [settings, setSettings] = useState({ theme: 'warm', accent: '#ff6a3d', layout: 'masonry' });
+  const [featuredIds, setFeaturedIds] = useState([]);
 
   const key = `${project.owner}/${project.repo}`;
   const wallUrl = `${window.location.origin}/p/${project.owner}/${project.repo}`;
@@ -287,6 +367,15 @@ function ProjectWall({ project, token, user }) {
     if (filters.query) params.set('query', filters.query.trim());
     return params.toString();
   }, [filters]);
+
+  const loadProject = async () => {
+    const response = await fetch(`${API_BASE}/projects/${project.owner}/${project.repo}`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.settings) setSettings(data.settings);
+      if (data.featured_ids) setFeaturedIds(data.featured_ids);
+    }
+  };
 
   const loadKudos = async () => {
     setLoading(true);
@@ -313,6 +402,10 @@ function ProjectWall({ project, token, user }) {
       // ignore
     }
   };
+
+  useEffect(() => {
+    loadProject();
+  }, [key]);
 
   useEffect(() => {
     loadKudos();
@@ -395,6 +488,40 @@ function ProjectWall({ project, token, user }) {
     }
   };
 
+  const toggleFeatured = async (id) => {
+    if (!token) return;
+    const isFeatured = featuredIds.includes(id);
+    const url = isFeatured
+      ? `${API_BASE}/projects/${key}/featured/${id}`
+      : `${API_BASE}/projects/${key}/featured`;
+    const method = isFeatured ? 'DELETE' : 'POST';
+    const response = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: isFeatured ? undefined : JSON.stringify({ kudosId: id }),
+    });
+    if (response.ok) {
+      const data = await response.json();
+      setFeaturedIds(data.featured_ids || []);
+    }
+  };
+
+  const updateSettings = async (next) => {
+    setSettings(next);
+    if (!token) return;
+    await fetch(`${API_BASE}/projects/${key}/settings`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(next),
+    });
+  };
+
   const handleDrag = (event, id) => {
     if (!arrange) return;
     event.dataTransfer.setData('text/plain', String(id));
@@ -425,7 +552,9 @@ function ProjectWall({ project, token, user }) {
   };
 
   return (
-    <div className="project">
+    <div className={`project wall-theme-${settings.theme}`}
+      style={{ '--accent': settings.accent }}
+    >
       <header className="project-hero">
         <div>
           <p className="project-label">Project Wall</p>
@@ -434,10 +563,7 @@ function ProjectWall({ project, token, user }) {
         </div>
         <div className="project-actions">
           {user ? (
-            <span className="user-chip">
-              <img src={user.avatar_url} alt={user.login} />
-              <span>@{user.login}</span>
-            </span>
+            <UserMenu user={user} onLogout={onLogout} />
           ) : (
             <span className="badge">Viewer</span>
           )}
@@ -460,6 +586,59 @@ function ProjectWall({ project, token, user }) {
           <div className="link-row">
             <span>{`![Gratitude Wall](${snapshotUrl})`}</span>
             <button className="secondary" onClick={() => copyText(`![Gratitude Wall](${snapshotUrl})`)}>Copy README</button>
+          </div>
+        </div>
+        <div className="snapshot-preview">
+          <img src={snapshotUrl} alt="Wall snapshot" />
+        </div>
+      </section>
+
+      <section className="customize">
+        <div>
+          <h3>Customize your wall</h3>
+          <p>Pick a theme, accent, and layout that fits your community.</p>
+        </div>
+        <div className="customize-controls">
+          <div className="custom-group">
+            <div className="custom-label">Theme</div>
+            <div className="custom-options">
+              {THEME_OPTIONS.map((opt) => (
+                <button
+                  key={opt.id}
+                  className={`pill-btn ${settings.theme === opt.id ? 'active' : ''}`}
+                  onClick={() => updateSettings({ ...settings, theme: opt.id })}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="custom-group">
+            <div className="custom-label">Accent</div>
+            <div className="custom-options">
+              {ACCENTS.map((color) => (
+                <button
+                  key={color}
+                  className={`color-swatch ${settings.accent === color ? 'active' : ''}`}
+                  style={{ background: color }}
+                  onClick={() => updateSettings({ ...settings, accent: color })}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="custom-group">
+            <div className="custom-label">Layout</div>
+            <div className="custom-options">
+              {LAYOUTS.map((layout) => (
+                <button
+                  key={layout.id}
+                  className={`pill-btn ${settings.layout === layout.id ? 'active' : ''}`}
+                  onClick={() => updateSettings({ ...settings, layout: layout.id })}
+                >
+                  {layout.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -547,7 +726,7 @@ function ProjectWall({ project, token, user }) {
         <div className="wall-header">
           <div>
             <h2>Gratitude Wall</h2>
-            <p>Drag to arrange when in arrange mode.</p>
+            <p>Drag to arrange when in arrange mode. Pin highlights to feature them in the snapshot.</p>
           </div>
           <div className="wall-controls">
             <input
@@ -581,37 +760,47 @@ function ProjectWall({ project, token, user }) {
         ) : orderedKudos.length === 0 ? (
           <div className="empty">No kudos yet. Maintainers can add the first.</div>
         ) : (
-          <div className={`card-grid ${arrange ? 'arrange' : ''}`}>
-            {orderedKudos.map((entry) => (
-              <article
-                key={entry.id}
-                className="kudos-card"
-                draggable={arrange}
-                onDragStart={(event) => handleDrag(event, entry.id)}
-                onDragOver={(event) => arrange && event.preventDefault()}
-                onDrop={(event) => handleDrop(event, entry.id)}
-              >
-                <div className="card-top">
-                  <div>
-                    <h3>{entry.name}</h3>
-                    <p className="card-handle">{entry.handle || 'Contributor'}</p>
-                  </div>
-                  <span className="card-tag">#{entry.tag}</span>
-                </div>
-                <p className="card-message">“{entry.message}”</p>
-                <div className="card-meta">
-                  <span>{formatDate(entry.created_at)}</span>
-                  <span>{spotlight?.id === entry.id ? 'Spotlight' : ''}</span>
-                </div>
-                <button
-                  className="secondary"
-                  onClick={() => handleBoost(entry.id)}
-                  disabled={boosting === entry.id}
+          <div className={`card-grid ${arrange ? 'arrange' : ''} ${settings.layout === 'compact' ? 'compact' : ''}`}>
+            {orderedKudos.map((entry) => {
+              const isFeatured = featuredIds.includes(entry.id);
+              return (
+                <article
+                  key={entry.id}
+                  className={`kudos-card ${isFeatured ? 'featured' : ''}`}
+                  draggable={arrange}
+                  onDragStart={(event) => handleDrag(event, entry.id)}
+                  onDragOver={(event) => arrange && event.preventDefault()}
+                  onDrop={(event) => handleDrop(event, entry.id)}
                 >
-                  {boosting === entry.id ? 'Cheering…' : `Cheer (${entry.boosts})`}
-                </button>
-              </article>
-            ))}
+                  <div className="card-top">
+                    <div>
+                      <h3>{entry.name}</h3>
+                      <p className="card-handle">{entry.handle || 'Contributor'}</p>
+                    </div>
+                    <span className="card-tag">#{entry.tag}</span>
+                  </div>
+                  <p className="card-message">“{entry.message}”</p>
+                  <div className="card-meta">
+                    <span>{formatDate(entry.created_at)}</span>
+                    <span>{spotlight?.id === entry.id ? 'Spotlight' : ''}</span>
+                  </div>
+                  <div className="card-actions">
+                    <button
+                      className="secondary"
+                      onClick={() => handleBoost(entry.id)}
+                      disabled={boosting === entry.id}
+                    >
+                      {boosting === entry.id ? 'Cheering…' : `Cheer (${entry.boosts})`}
+                    </button>
+                    {token && (
+                      <button className="ghost" onClick={() => toggleFeatured(entry.id)}>
+                        {isFeatured ? 'Unpin' : 'Pin'}
+                      </button>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
       </section>
@@ -664,28 +853,23 @@ function App() {
     <div className="page">
       {!project && (
         <>
-          <Hero onConnect={handleConnect} user={user} />
+          <Hero onConnect={handleConnect} user={user} onLogout={logout} />
           <RepoPicker
             token={token}
             onConnect={handleConnect}
             onCreateWall={handleCreateWall}
             creating={creating}
             error={error}
+            user={user}
+            onLogout={logout}
           />
         </>
       )}
       {project && (
-        <ProjectWall project={project} token={token} user={user} />
+        <ProjectWall project={project} token={token} user={user} onLogout={logout} />
       )}
       <footer className="footer">
         <div>Project‑scoped gratitude walls for open‑source maintainers.</div>
-        <div>
-          {user ? (
-            <button className="ghost" onClick={logout}>Log out</button>
-          ) : (
-            <span>Connect to post kudos.</span>
-          )}
-        </div>
       </footer>
     </div>
   );

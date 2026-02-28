@@ -98,7 +98,7 @@ function escapeXml(value) {
     .replace(/'/g, '&apos;');
 }
 
-function buildSnapshotSvg({ owner, repo, kudos }) {
+function buildSnapshotSvg({ owner, repo, kudos, settings }) {
   const width = 1200;
   const height = 630;
   const cardWidth = 340;
@@ -107,6 +107,14 @@ function buildSnapshotSvg({ owner, repo, kudos }) {
   const gap = 20;
   const offsetX = 60;
   const offsetY = 150;
+  const theme = settings?.theme || 'warm';
+  const accent = settings?.accent || '#ff6a3d';
+  const bgStart = theme === 'midnight' ? '#0f141a' : '#FFF0E6';
+  const bgEnd = theme === 'midnight' ? '#1a1f26' : '#F6F3EF';
+  const textMain = theme === 'midnight' ? '#f5f5f5' : '#161515';
+  const textSub = theme === 'midnight' ? '#c5c5c5' : '#5d5a56';
+  const cardFill = theme === 'midnight' ? '#171c22' : '#ffffff';
+  const cardStroke = theme === 'midnight' ? '#2a313a' : '#E2DBD3';
 
   const cards = kudos.slice(0, 10).map((entry, index) => {
     const col = index % cols;
@@ -117,14 +125,17 @@ function buildSnapshotSvg({ owner, repo, kudos }) {
     const handle = escapeXml(entry.handle || '');
     const message = escapeXml(entry.message || 'Thanks for your contributions!');
     const tag = escapeXml(entry.tag || 'community');
+    const initials = escapeXml((entry.name || 'C').slice(0, 2).toUpperCase());
 
     return `
       <g>
-        <rect x="${x}" y="${y}" rx="18" ry="18" width="${cardWidth}" height="${cardHeight}" fill="#ffffff" stroke="#E2DBD3" />
-        <text x="${x + 20}" y="${y + 36}" font-family="'Space Grotesk', Arial" font-size="20" fill="#161515" font-weight="600">${name}</text>
-        <text x="${x + 20}" y="${y + 62}" font-family="'Space Grotesk', Arial" font-size="14" fill="#5d5a56">${handle}</text>
-        <text x="${x + 20}" y="${y + 92}" font-family="'Space Grotesk', Arial" font-size="14" fill="#161515">${message.slice(0, 40)}${message.length > 40 ? '…' : ''}</text>
-        <text x="${x + 20}" y="${y + 118}" font-family="'Space Grotesk', Arial" font-size="12" fill="#2b7a78">#${tag}</text>
+        <rect x="${x}" y="${y}" rx="18" ry="18" width="${cardWidth}" height="${cardHeight}" fill="${cardFill}" stroke="${cardStroke}" />
+        <circle cx="${x + 28}" cy="${y + 36}" r="16" fill="${accent}" opacity="0.9" />
+        <text x="${x + 28}" y="${y + 41}" text-anchor="middle" font-family="'Space Grotesk', Arial" font-size="12" fill="#ffffff" font-weight="700">${initials}</text>
+        <text x="${x + 56}" y="${y + 36}" font-family="'Space Grotesk', Arial" font-size="20" fill="${textMain}" font-weight="600">${name}</text>
+        <text x="${x + 56}" y="${y + 62}" font-family="'Space Grotesk', Arial" font-size="14" fill="${textSub}">${handle}</text>
+        <text x="${x + 20}" y="${y + 92}" font-family="'Space Grotesk', Arial" font-size="14" fill="${textMain}">${message.slice(0, 40)}${message.length > 40 ? '…' : ''}</text>
+        <text x="${x + 20}" y="${y + 118}" font-family="'Space Grotesk', Arial" font-size="12" fill="${accent}">#${tag}</text>
       </g>
     `;
   }).join('');
@@ -133,14 +144,14 @@ function buildSnapshotSvg({ owner, repo, kudos }) {
   <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#FFF0E6" />
-        <stop offset="100%" stop-color="#F6F3EF" />
+        <stop offset="0%" stop-color="${bgStart}" />
+        <stop offset="100%" stop-color="${bgEnd}" />
       </linearGradient>
     </defs>
     <rect width="100%" height="100%" fill="url(#bg)" />
-    <text x="60" y="72" font-family="'Fraunces', Georgia" font-size="36" fill="#161515">PR Gratitude Wall</text>
-    <text x="60" y="104" font-family="'Space Grotesk', Arial" font-size="18" fill="#5d5a56">${escapeXml(owner)}/${escapeXml(repo)}</text>
-    ${cards || `<text x="60" y="200" font-family="'Space Grotesk', Arial" font-size="16" fill="#5d5a56">No kudos yet. Maintainers can add the first.</text>`}
+    <text x="60" y="72" font-family="'Fraunces', Georgia" font-size="36" fill="${textMain}">PR Gratitude Wall</text>
+    <text x="60" y="104" font-family="'Space Grotesk', Arial" font-size="18" fill="${textSub}">${escapeXml(owner)}/${escapeXml(repo)}</text>
+    ${cards || `<text x="60" y="200" font-family="'Space Grotesk', Arial" font-size="16" fill="${textSub}">No kudos yet. Maintainers can add the first.</text>`}
   </svg>`;
 }
 
@@ -200,6 +211,8 @@ app.get('/github/repos', authMiddleware, async (req, res) => {
       private: repo.private,
       stars: repo.stargazers_count,
       description: repo.description || '',
+      updated_at: repo.updated_at,
+      language: repo.language || '',
     })));
   } catch (err) {
     res.status(500).json({ error: err.message || 'Unable to load repos.' });
@@ -222,6 +235,12 @@ app.post('/projects/from-github', authMiddleware, async (req, res) => {
           repo: repoInfo.name,
           created_by: req.user._id,
           created_at: new Date(),
+          settings: {
+            theme: 'warm',
+            accent: '#ff6a3d',
+            layout: 'masonry',
+          },
+          featured_ids: [],
         },
       },
       { upsert: true }
@@ -253,6 +272,8 @@ app.post('/projects/from-github', authMiddleware, async (req, res) => {
       repo: project.repo,
       wall_url: wallUrl,
       snapshot_url: snapshotUrl,
+      settings: project.settings || null,
+      featured_ids: project.featured_ids?.map((id) => id.toString()) || [],
     });
   } catch (err) {
     res.status(500).json({ error: err.message || 'Unable to create project.' });
@@ -263,7 +284,81 @@ app.get('/projects/:owner/:repo', async (req, res) => {
   const { owner, repo } = req.params;
   const project = await projectsCollection.findOne({ owner, repo });
   if (!project) return res.status(404).json({ error: 'Not found' });
-  res.json({ id: project._id.toString(), owner: project.owner, repo: project.repo });
+  res.json({
+    id: project._id.toString(),
+    owner: project.owner,
+    repo: project.repo,
+    settings: project.settings || null,
+    featured_ids: project.featured_ids?.map((id) => id.toString()) || [],
+  });
+});
+
+app.patch('/projects/:owner/:repo/settings', authMiddleware, async (req, res) => {
+  const { owner, repo } = req.params;
+  const { theme, accent, layout } = req.body || {};
+  const project = await projectsCollection.findOne({ owner, repo });
+  if (!project) return res.status(404).json({ error: 'Project not found.' });
+
+  try {
+    await ensureMaintainer(req.user, owner, repo);
+  } catch (err) {
+    return res.status(403).json({ error: err.message });
+  }
+
+  const nextSettings = {
+    theme: theme || project.settings?.theme || 'warm',
+    accent: accent || project.settings?.accent || '#ff6a3d',
+    layout: layout || project.settings?.layout || 'masonry',
+  };
+
+  await projectsCollection.updateOne(
+    { _id: project._id },
+    { $set: { settings: nextSettings } }
+  );
+
+  res.json({ settings: nextSettings });
+});
+
+app.post('/projects/:owner/:repo/featured', authMiddleware, async (req, res) => {
+  const { owner, repo } = req.params;
+  const { kudosId } = req.body || {};
+  if (!kudosId) return res.status(400).json({ error: 'kudosId required.' });
+  const project = await projectsCollection.findOne({ owner, repo });
+  if (!project) return res.status(404).json({ error: 'Project not found.' });
+
+  try {
+    await ensureMaintainer(req.user, owner, repo);
+  } catch (err) {
+    return res.status(403).json({ error: err.message });
+  }
+
+  await projectsCollection.updateOne(
+    { _id: project._id },
+    { $addToSet: { featured_ids: new ObjectId(kudosId) } }
+  );
+
+  const updated = await projectsCollection.findOne({ _id: project._id });
+  res.json({ featured_ids: updated.featured_ids?.map((id) => id.toString()) || [] });
+});
+
+app.delete('/projects/:owner/:repo/featured/:kudosId', authMiddleware, async (req, res) => {
+  const { owner, repo, kudosId } = req.params;
+  const project = await projectsCollection.findOne({ owner, repo });
+  if (!project) return res.status(404).json({ error: 'Project not found.' });
+
+  try {
+    await ensureMaintainer(req.user, owner, repo);
+  } catch (err) {
+    return res.status(403).json({ error: err.message });
+  }
+
+  await projectsCollection.updateOne(
+    { _id: project._id },
+    { $pull: { featured_ids: new ObjectId(kudosId) } }
+  );
+
+  const updated = await projectsCollection.findOne({ _id: project._id });
+  res.json({ featured_ids: updated.featured_ids?.map((id) => id.toString()) || [] });
 });
 
 app.get('/projects/:owner/:repo/kudos', async (req, res) => {
@@ -305,13 +400,24 @@ app.get('/projects/:owner/:repo/snapshot.svg', async (req, res) => {
   const project = await projectsCollection.findOne({ owner, repo });
   if (!project) return res.status(404).send('Not found');
 
-  const rows = await kudosCollection
-    .find({ project_id: project._id })
+  let featuredRows = [];
+  if (project.featured_ids?.length) {
+    featuredRows = await kudosCollection
+      .find({ _id: { $in: project.featured_ids } })
+      .toArray();
+  }
+  const remainingRows = await kudosCollection
+    .find({ project_id: project._id, _id: { $nin: project.featured_ids || [] } })
     .sort({ boosts: -1, created_at: -1 })
     .limit(10)
     .toArray();
 
-  const svg = buildSnapshotSvg({ owner, repo, kudos: rows });
+  const svg = buildSnapshotSvg({
+    owner,
+    repo,
+    kudos: [...featuredRows, ...remainingRows].slice(0, 10),
+    settings: project.settings || null,
+  });
   res.set('Content-Type', 'image/svg+xml');
   res.send(svg);
 });
