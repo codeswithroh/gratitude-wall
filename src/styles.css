@@ -891,7 +891,7 @@ textarea {
 
 .link-row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
   border: 1px dashed var(--stroke);
@@ -899,6 +899,13 @@ textarea {
   border-radius: 14px;
   font-size: 0.9rem;
   background: #fdf8f2;
+  overflow: hidden;
+}
+
+.link-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .repo-list {
