@@ -187,32 +187,75 @@ function AuthCallback({ onToken, onConnect }) {
   );
 }
 
-function Landing({ onConnect, onCreateWall, creating, error }) {
-  const [repoInput, setRepoInput] = useState('');
+function RepoPicker({ token, onConnect, onCreateWall, creating, error }) {
+  const [repos, setRepos] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [query, setQuery] = useState('');
+  const [selected, setSelected] = useState(null);
 
-  const handleCreate = () => {
-    const [owner, repo] = repoInput.split('/');
-    if (!owner || !repo) return;
-    onCreateWall(owner.trim(), repo.trim());
-  };
+  useEffect(() => {
+    const loadRepos = async () => {
+      if (!token) return;
+      setLoading(true);
+      try {
+        const response = await fetch(`${API_BASE}/github/repos`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) throw new Error('Unable to load repos');
+        const data = await response.json();
+        setRepos(data);
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadRepos();
+  }, [token]);
+
+  const filtered = repos.filter((repo) => repo.full_name.toLowerCase().includes(query.toLowerCase()));
 
   return (
     <section className="share">
       <div>
         <h2>Create your project wall</h2>
-        <p>Connect your GitHub, verify maintainership, and spin up a dedicated gratitude wall for your repo.</p>
-        <button className="primary" onClick={onConnect}>Connect GitHub</button>
+        <p>Pick a repo you maintain. We will generate a starter wall from the top contributors.</p>
+        {!token && <button className="primary" onClick={onConnect}>Connect GitHub</button>}
       </div>
       <div className="share-form">
         <label>
-          GitHub Repo
+          Search your repos
           <input
-            value={repoInput}
-            onChange={(event) => setRepoInput(event.target.value)}
-            placeholder="owner/repo"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search by repo name"
+            disabled={!token}
           />
         </label>
-        <button className="secondary" onClick={handleCreate} disabled={creating}>
+        {loading && <div className="empty">Loading repos…</div>}
+        {!loading && token && (
+          <div className="repo-list">
+            {filtered.slice(0, 8).map((repo) => (
+              <button
+                key={repo.full_name}
+                className={`repo-card ${selected?.full_name === repo.full_name ? 'active' : ''}`}
+                onClick={() => setSelected(repo)}
+                type="button"
+              >
+                <div>
+                  <div className="repo-title">{repo.full_name}</div>
+                  <div className="repo-desc">{repo.description || 'No description'}</div>
+                </div>
+                <div className="repo-meta">★ {repo.stars}</div>
+              </button>
+            ))}
+          </div>
+        )}
+        <button
+          className="secondary"
+          onClick={() => selected && onCreateWall(selected.owner, selected.repo)}
+          disabled={creating || !selected}
+        >
           {creating ? 'Creating…' : 'Create Wall'}
         </button>
         {error && <div className="error">{error}</div>}
@@ -234,6 +277,8 @@ function ProjectWall({ project, token, user }) {
   const [order, setOrder] = useState([]);
 
   const key = `${project.owner}/${project.repo}`;
+  const wallUrl = `${window.location.origin}/p/${project.owner}/${project.repo}`;
+  const snapshotUrl = `${API_BASE}/projects/${project.owner}/${project.repo}/snapshot.svg`;
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -371,6 +416,14 @@ function ProjectWall({ project, token, user }) {
     localStorage.setItem(`gratitude_order_${key}`, JSON.stringify(next));
   };
 
+  const copyText = async (value) => {
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      // ignore
+    }
+  };
+
   return (
     <div className="project">
       <header className="project-hero">
@@ -393,6 +446,23 @@ function ProjectWall({ project, token, user }) {
           </button>
         </div>
       </header>
+
+      <section className="share-link">
+        <div>
+          <h3>Shareable Wall Link</h3>
+          <p>Use this link to share the wall or drop the snapshot into your README.</p>
+        </div>
+        <div className="link-box">
+          <div className="link-row">
+            <span>{wallUrl}</span>
+            <button className="secondary" onClick={() => copyText(wallUrl)}>Copy link</button>
+          </div>
+          <div className="link-row">
+            <span>{`![Gratitude Wall](${snapshotUrl})`}</span>
+            <button className="secondary" onClick={() => copyText(`![Gratitude Wall](${snapshotUrl})`)}>Copy README</button>
+          </div>
+        </div>
+      </section>
 
       <section className="stats">
         <div className="stat-card">
@@ -568,7 +638,7 @@ function App() {
     setCreating(true);
     setError('');
     try {
-      const response = await fetch(`${API_BASE}/projects`, {
+      const response = await fetch(`${API_BASE}/projects/from-github`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -595,7 +665,13 @@ function App() {
       {!project && (
         <>
           <Hero onConnect={handleConnect} user={user} />
-          <Landing onConnect={handleConnect} onCreateWall={handleCreateWall} creating={creating} error={error} />
+          <RepoPicker
+            token={token}
+            onConnect={handleConnect}
+            onCreateWall={handleCreateWall}
+            creating={creating}
+            error={error}
+          />
         </>
       )}
       {project && (

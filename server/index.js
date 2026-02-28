@@ -89,6 +89,61 @@ async function ensureMaintainer(user, owner, repo) {
   return perm;
 }
 
+function escapeXml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function buildSnapshotSvg({ owner, repo, kudos }) {
+  const width = 1200;
+  const height = 630;
+  const cardWidth = 340;
+  const cardHeight = 140;
+  const cols = 3;
+  const gap = 20;
+  const offsetX = 60;
+  const offsetY = 150;
+
+  const cards = kudos.slice(0, 10).map((entry, index) => {
+    const col = index % cols;
+    const row = Math.floor(index / cols);
+    const x = offsetX + col * (cardWidth + gap);
+    const y = offsetY + row * (cardHeight + gap);
+    const name = escapeXml(entry.name || 'Contributor');
+    const handle = escapeXml(entry.handle || '');
+    const message = escapeXml(entry.message || 'Thanks for your contributions!');
+    const tag = escapeXml(entry.tag || 'community');
+
+    return `
+      <g>
+        <rect x="${x}" y="${y}" rx="18" ry="18" width="${cardWidth}" height="${cardHeight}" fill="#ffffff" stroke="#E2DBD3" />
+        <text x="${x + 20}" y="${y + 36}" font-family="'Space Grotesk', Arial" font-size="20" fill="#161515" font-weight="600">${name}</text>
+        <text x="${x + 20}" y="${y + 62}" font-family="'Space Grotesk', Arial" font-size="14" fill="#5d5a56">${handle}</text>
+        <text x="${x + 20}" y="${y + 92}" font-family="'Space Grotesk', Arial" font-size="14" fill="#161515">${message.slice(0, 40)}${message.length > 40 ? '…' : ''}</text>
+        <text x="${x + 20}" y="${y + 118}" font-family="'Space Grotesk', Arial" font-size="12" fill="#2b7a78">#${tag}</text>
+      </g>
+    `;
+  }).join('');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+  <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#FFF0E6" />
+        <stop offset="100%" stop-color="#F6F3EF" />
+      </linearGradient>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#bg)" />
+    <text x="60" y="72" font-family="'Fraunces', Georgia" font-size="36" fill="#161515">PR Gratitude Wall</text>
+    <text x="60" y="104" font-family="'Space Grotesk', Arial" font-size="18" fill="#5d5a56">${escapeXml(owner)}/${escapeXml(repo)}</text>
+    ${cards || `<text x="60" y="200" font-family="'Space Grotesk', Arial" font-size="16" fill="#5d5a56">No kudos yet. Maintainers can add the first.</text>`}
+  </svg>`;
+}
+
 app.get('/health', (req, res) => res.json({ ok: true }));
 
 app.get('/auth/github', ensureAuthConfig, (req, res) => {
@@ -134,7 +189,24 @@ app.get('/me', authMiddleware, (req, res) => {
   res.json({ login: req.user.login, avatar_url: req.user.avatar_url, name: req.user.name });
 });
 
-app.post('/projects', authMiddleware, async (req, res) => {
+app.get('/github/repos', authMiddleware, async (req, res) => {
+  try {
+    const repos = await githubRequest('/user/repos?per_page=100&sort=updated', req.user.github_token);
+    const allowed = repos.filter((repo) => repo.permissions?.admin || repo.permissions?.maintain || repo.permissions?.push);
+    res.json(allowed.map((repo) => ({
+      owner: repo.owner?.login,
+      repo: repo.name,
+      full_name: repo.full_name,
+      private: repo.private,
+      stars: repo.stargazers_count,
+      description: repo.description || '',
+    })));
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Unable to load repos.' });
+  }
+});
+
+app.post('/projects/from-github', authMiddleware, async (req, res) => {
   const { owner, repo } = req.body || {};
   if (!owner || !repo) return res.status(400).json({ error: 'owner and repo required.' });
 
@@ -156,7 +228,32 @@ app.post('/projects', authMiddleware, async (req, res) => {
     );
 
     const project = await projectsCollection.findOne({ owner: repoInfo.owner.login, repo: repoInfo.name });
-    res.json({ id: project._id.toString(), owner: project.owner, repo: project.repo });
+    const existingCount = await kudosCollection.countDocuments({ project_id: project._id });
+
+    if (existingCount === 0) {
+      const contributors = await githubRequest(`/repos/${owner}/${repo}/contributors?per_page=10`, req.user.github_token);
+      const seedDocs = contributors.slice(0, 10).map((contrib) => ({
+        project_id: project._id,
+        name: contrib.login,
+        handle: `@${contrib.login}`,
+        tag: 'community',
+        message: `Top contributor with ${contrib.contributions} contributions. Thank you!`,
+        boosts: 0,
+        created_at: new Date(),
+      }));
+      if (seedDocs.length) await kudosCollection.insertMany(seedDocs);
+    }
+
+    const wallUrl = `${FRONTEND_URL}/p/${project.owner}/${project.repo}`;
+    const snapshotUrl = `${BACKEND_URL}/projects/${project.owner}/${project.repo}/snapshot.svg`;
+
+    res.json({
+      id: project._id.toString(),
+      owner: project.owner,
+      repo: project.repo,
+      wall_url: wallUrl,
+      snapshot_url: snapshotUrl,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message || 'Unable to create project.' });
   }
@@ -201,6 +298,22 @@ app.get('/projects/:owner/:repo/kudos', async (req, res) => {
     boosts: row.boosts,
     created_at: row.created_at,
   })));
+});
+
+app.get('/projects/:owner/:repo/snapshot.svg', async (req, res) => {
+  const { owner, repo } = req.params;
+  const project = await projectsCollection.findOne({ owner, repo });
+  if (!project) return res.status(404).send('Not found');
+
+  const rows = await kudosCollection
+    .find({ project_id: project._id })
+    .sort({ boosts: -1, created_at: -1 })
+    .limit(10)
+    .toArray();
+
+  const svg = buildSnapshotSvg({ owner, repo, kudos: rows });
+  res.set('Content-Type', 'image/svg+xml');
+  res.send(svg);
 });
 
 app.post('/projects/:owner/:repo/kudos', authMiddleware, async (req, res) => {
