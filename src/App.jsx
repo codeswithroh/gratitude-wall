@@ -369,6 +369,8 @@ function ProjectWall({ project, token, user, onLogout }) {
     subtitle: `${project.owner}/${project.repo}`,
     titleColor: '#161515',
     subtitleColor: '#5d5a56',
+    cardTextColor: '#161515',
+    cardSubtextColor: '#5d5a56',
   });
   const [featuredIds, setFeaturedIds] = useState([]);
   const [snapshotLoading, setSnapshotLoading] = useState(true);
@@ -378,7 +380,7 @@ function ProjectWall({ project, token, user, onLogout }) {
 
   const key = `${project.owner}/${project.repo}`;
   const wallUrl = `${window.location.origin}/p/${project.owner}/${project.repo}`;
-  const snapshotUrl = `${API_BASE}/projects/${project.owner}/${project.repo}/snapshot.svg?theme=${settings.theme}&accent=${encodeURIComponent(settings.accent)}&background=${settings.background}&layout=${settings.layout}&title=${encodeURIComponent(settings.title)}&subtitle=${encodeURIComponent(settings.subtitle)}&titleColor=${encodeURIComponent(settings.titleColor)}&subtitleColor=${encodeURIComponent(settings.subtitleColor)}&v=${snapshotVersion}`;
+  const snapshotUrl = `${API_BASE}/projects/${project.owner}/${project.repo}/snapshot.svg?theme=${settings.theme}&accent=${encodeURIComponent(settings.accent)}&background=${settings.background}&layout=${settings.layout}&title=${encodeURIComponent(settings.title)}&subtitle=${encodeURIComponent(settings.subtitle)}&titleColor=${encodeURIComponent(settings.titleColor)}&subtitleColor=${encodeURIComponent(settings.subtitleColor)}&cardTextColor=${encodeURIComponent(settings.cardTextColor)}&cardSubtextColor=${encodeURIComponent(settings.cardSubtextColor)}&v=${snapshotVersion}`;
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -588,8 +590,12 @@ function ProjectWall({ project, token, user, onLogout }) {
 
   return (
     <div
-      className={`project wall-theme-${settings.theme} wall-bg-${settings.background}`}
-      style={{ '--accent': settings.accent }}
+      className={`project wall-bg-${settings.background}`}
+      style={{
+        '--accent': settings.accent,
+        '--card-text': settings.cardTextColor,
+        '--card-subtext': settings.cardSubtextColor,
+      }}
     >
       <header className="project-hero">
         <div>
@@ -645,7 +651,7 @@ function ProjectWall({ project, token, user, onLogout }) {
             </div>
             <div className="customize-controls">
               <div className="custom-group">
-                <div className="custom-label">Theme</div>
+                <div className="custom-label">Theme (snapshot only)</div>
                 <div className="custom-options">
                   {THEME_OPTIONS.map((opt) => (
                     <button
@@ -701,32 +707,92 @@ function ProjectWall({ project, token, user, onLogout }) {
           </div>
           <div className="custom-group">
             <div className="custom-label">Title</div>
-            <div className="custom-options">
+            <div className="custom-options column">
               <input
                 className="text-input"
                 value={settings.title}
                 onChange={(event) => updateSettings({ ...settings, title: event.target.value })}
               />
-              <input
-                type="color"
-                value={settings.titleColor}
-                onChange={(event) => updateSettings({ ...settings, titleColor: event.target.value })}
-              />
+              <div className="color-row">
+                {['#161515', '#f5f5f5', '#ff6a3d', '#2b7a78'].map((color) => (
+                  <button
+                    key={color}
+                    className={`color-swatch ${settings.titleColor === color ? 'active' : ''}`}
+                    style={{ background: color }}
+                    onClick={() => updateSettings({ ...settings, titleColor: color })}
+                  />
+                ))}
+                <input
+                  type="color"
+                  value={settings.titleColor}
+                  onChange={(event) => updateSettings({ ...settings, titleColor: event.target.value })}
+                />
+              </div>
             </div>
           </div>
           <div className="custom-group">
             <div className="custom-label">Subtitle</div>
-            <div className="custom-options">
+            <div className="custom-options column">
               <input
                 className="text-input"
                 value={settings.subtitle}
                 onChange={(event) => updateSettings({ ...settings, subtitle: event.target.value })}
               />
-              <input
-                type="color"
-                value={settings.subtitleColor}
-                onChange={(event) => updateSettings({ ...settings, subtitleColor: event.target.value })}
-              />
+              <div className="color-row">
+                {['#5d5a56', '#c5c5c5', '#ff6a3d', '#2b7a78'].map((color) => (
+                  <button
+                    key={color}
+                    className={`color-swatch ${settings.subtitleColor === color ? 'active' : ''}`}
+                    style={{ background: color }}
+                    onClick={() => updateSettings({ ...settings, subtitleColor: color })}
+                  />
+                ))}
+                <input
+                  type="color"
+                  value={settings.subtitleColor}
+                  onChange={(event) => updateSettings({ ...settings, subtitleColor: event.target.value })}
+                />
+              </div>
+            </div>
+          </div>
+          <div className="custom-group">
+            <div className="custom-label">Card Text</div>
+            <div className="custom-options column">
+              <div className="color-row">
+                {['#161515', '#f5f5f5', '#2b7a78', '#ff6a3d'].map((color) => (
+                  <button
+                    key={color}
+                    className={`color-swatch ${settings.cardTextColor === color ? 'active' : ''}`}
+                    style={{ background: color }}
+                    onClick={() => updateSettings({ ...settings, cardTextColor: color })}
+                  />
+                ))}
+                <input
+                  type="color"
+                  value={settings.cardTextColor}
+                  onChange={(event) => updateSettings({ ...settings, cardTextColor: event.target.value })}
+                />
+              </div>
+            </div>
+          </div>
+          <div className="custom-group">
+            <div className="custom-label">Card Subtext</div>
+            <div className="custom-options column">
+              <div className="color-row">
+                {['#5d5a56', '#c5c5c5', '#2b7a78', '#ff6a3d'].map((color) => (
+                  <button
+                    key={color}
+                    className={`color-swatch ${settings.cardSubtextColor === color ? 'active' : ''}`}
+                    style={{ background: color }}
+                    onClick={() => updateSettings({ ...settings, cardSubtextColor: color })}
+                  />
+                ))}
+                <input
+                  type="color"
+                  value={settings.cardSubtextColor}
+                  onChange={(event) => updateSettings({ ...settings, cardSubtextColor: event.target.value })}
+                />
+              </div>
             </div>
           </div>
         </div>

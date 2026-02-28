@@ -537,15 +537,7 @@ textarea {
   padding: 24px;
 }
 
-.project.wall-theme-midnight {
-  --card: #171c22;
-  --stroke: #2a313a;
-  --muted: #c5c5c5;
-  --ink: #f5f5f5;
-  background: linear-gradient(180deg, #0f141a 0%, #141a20 100%);
-  padding: 24px;
-  border-radius: 24px;
-}
+/* Snapshot theme handled server-side; UI theme stays consistent. */
 
 .project-hero {
   background: #fff;
@@ -802,21 +794,14 @@ textarea {
   gap: 16px;
 }
 
-.wall-theme-midnight .project-hero,
-.wall-theme-midnight .share-link,
-.wall-theme-midnight .customize,
-.wall-theme-midnight .share-form,
-.wall-theme-midnight .stat-card,
-.wall-theme-midnight .kudos-card,
-.wall-theme-midnight .empty {
-  background: var(--card);
-  color: var(--ink);
-  border-color: var(--stroke);
+.kudos-card h3,
+.card-message {
+  color: var(--card-text, var(--ink));
 }
 
-.wall-theme-midnight .repo-stage,
-.wall-theme-midnight .repo-panel {
-  background: #0f141a;
+.card-handle,
+.card-meta {
+  color: var(--card-subtext, var(--muted));
 }
 
 .customize-controls {
@@ -840,6 +825,26 @@ textarea {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.custom-options.column {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.color-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.color-row input[type="color"] {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  padding: 0;
+  background: transparent;
 }
 
 .text-input {

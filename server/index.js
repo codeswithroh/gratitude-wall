@@ -119,8 +119,12 @@ function buildSnapshotSvg({ owner, repo, kudos, settings }) {
   const base = backgrounds[background] || backgrounds.sunset;
   const bgStart = theme === 'midnight' ? '#0f141a' : base[0];
   const bgEnd = theme === 'midnight' ? '#1a1f26' : base[1];
-  const textMain = settings?.titleColor || (theme === 'midnight' ? '#f5f5f5' : '#161515');
-  const textSub = settings?.subtitleColor || (theme === 'midnight' ? '#c5c5c5' : '#5d5a56');
+  const defaultTitle = theme === 'midnight' ? '#f5f5f5' : '#161515';
+  const defaultSubtitle = theme === 'midnight' ? '#c5c5c5' : '#5d5a56';
+  const textMain = (theme === 'midnight' && settings?.titleColor === '#161515') ? defaultTitle : (settings?.titleColor || defaultTitle);
+  const textSub = (theme === 'midnight' && settings?.subtitleColor === '#5d5a56') ? defaultSubtitle : (settings?.subtitleColor || defaultSubtitle);
+  const cardText = settings?.cardTextColor || textMain;
+  const cardSub = settings?.cardSubtextColor || textSub;
   const cardFill = theme === 'midnight' ? '#171c22' : '#ffffff';
   const cardStroke = theme === 'midnight' ? '#2a313a' : '#E2DBD3';
 
@@ -146,9 +150,9 @@ function buildSnapshotSvg({ owner, repo, kudos, settings }) {
         </defs>
         ${avatar ? `<image href="${avatar}" x="${x + 12}" y="${y + 20}" width="32" height="32" clip-path="url(#clip-${index})" />` : `<circle cx="${x + 28}" cy="${y + 36}" r="16" fill="${accent}" opacity="0.9" />
         <text x="${x + 28}" y="${y + 41}" text-anchor="middle" font-family="'Space Grotesk', Arial" font-size="12" fill="#ffffff" font-weight="700">${initials}</text>`}
-        <text x="${x + 56}" y="${y + 36}" font-family="'Space Grotesk', Arial" font-size="20" fill="${textMain}" font-weight="600">${name}</text>
-        <text x="${x + 56}" y="${y + 62}" font-family="'Space Grotesk', Arial" font-size="14" fill="${textSub}">${handle}</text>
-        <text x="${x + 20}" y="${y + 92}" font-family="'Space Grotesk', Arial" font-size="14" fill="${textMain}">${message.slice(0, 40)}${message.length > 40 ? '…' : ''}</text>
+        <text x="${x + 56}" y="${y + 36}" font-family="'Space Grotesk', Arial" font-size="20" fill="${cardText}" font-weight="600">${name}</text>
+        <text x="${x + 56}" y="${y + 62}" font-family="'Space Grotesk', Arial" font-size="14" fill="${cardSub}">${handle}</text>
+        <text x="${x + 20}" y="${y + 92}" font-family="'Space Grotesk', Arial" font-size="14" fill="${cardText}">${message.slice(0, 40)}${message.length > 40 ? '…' : ''}</text>
         <text x="${x + 20}" y="${y + 118}" font-family="'Space Grotesk', Arial" font-size="12" fill="${accent}">#${tag}</text>
       </g>
     `;
@@ -262,6 +266,8 @@ app.post('/projects/from-github', authMiddleware, async (req, res) => {
             subtitle: `${repoInfo.owner.login}/${repoInfo.name}`,
             titleColor: '#161515',
             subtitleColor: '#5d5a56',
+            cardTextColor: '#161515',
+            cardSubtextColor: '#5d5a56',
           },
           featured_ids: [],
         },
@@ -319,7 +325,7 @@ app.get('/projects/:owner/:repo', async (req, res) => {
 
 app.patch('/projects/:owner/:repo/settings', authMiddleware, async (req, res) => {
   const { owner, repo } = req.params;
-  const { theme, accent, layout, background, title, subtitle, titleColor, subtitleColor } = req.body || {};
+  const { theme, accent, layout, background, title, subtitle, titleColor, subtitleColor, cardTextColor, cardSubtextColor } = req.body || {};
   const project = await projectsCollection.findOne({ owner, repo });
   if (!project) return res.status(404).json({ error: 'Project not found.' });
 
@@ -338,6 +344,8 @@ app.patch('/projects/:owner/:repo/settings', authMiddleware, async (req, res) =>
     subtitle: subtitle || project.settings?.subtitle || `${owner}/${repo}`,
     titleColor: titleColor || project.settings?.titleColor || '#161515',
     subtitleColor: subtitleColor || project.settings?.subtitleColor || '#5d5a56',
+    cardTextColor: cardTextColor || project.settings?.cardTextColor || '#161515',
+    cardSubtextColor: cardSubtextColor || project.settings?.cardSubtextColor || '#5d5a56',
   };
 
   await projectsCollection.updateOne(
@@ -450,6 +458,8 @@ app.get('/projects/:owner/:repo/snapshot.svg', async (req, res) => {
     subtitle: req.query.subtitle,
     titleColor: req.query.titleColor,
     subtitleColor: req.query.subtitleColor,
+    cardTextColor: req.query.cardTextColor,
+    cardSubtextColor: req.query.cardSubtextColor,
   };
   const settings = { ...(project.settings || {}), ...Object.fromEntries(Object.entries(override).filter(([, value]) => value)) };
 
