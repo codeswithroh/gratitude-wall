@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
@@ -360,13 +360,25 @@ function ProjectWall({ project, token, user, onLogout }) {
   const [form, setForm] = useState({ name: '', handle: '', tag: 'docs', message: '' });
   const [arrange, setArrange] = useState(false);
   const [order, setOrder] = useState([]);
-  const [settings, setSettings] = useState({ theme: 'warm', accent: '#ff6a3d', layout: 'masonry', background: 'sunset' });
+  const [settings, setSettings] = useState({
+    theme: 'warm',
+    accent: '#ff6a3d',
+    layout: 'masonry',
+    background: 'sunset',
+    title: 'PR Gratitude Wall',
+    subtitle: `${project.owner}/${project.repo}`,
+    titleColor: '#161515',
+    subtitleColor: '#5d5a56',
+  });
   const [featuredIds, setFeaturedIds] = useState([]);
+  const [snapshotLoading, setSnapshotLoading] = useState(true);
+  const [snapshotVersion, setSnapshotVersion] = useState(0);
+  const patchTimerRef = useRef(null);
   const [tab, setTab] = useState('overview');
 
   const key = `${project.owner}/${project.repo}`;
   const wallUrl = `${window.location.origin}/p/${project.owner}/${project.repo}`;
-  const snapshotUrl = `${API_BASE}/projects/${project.owner}/${project.repo}/snapshot.svg?theme=${settings.theme}&accent=${encodeURIComponent(settings.accent)}&background=${settings.background}&layout=${settings.layout}`;
+  const snapshotUrl = `${API_BASE}/projects/${project.owner}/${project.repo}/snapshot.svg?theme=${settings.theme}&accent=${encodeURIComponent(settings.accent)}&background=${settings.background}&layout=${settings.layout}&title=${encodeURIComponent(settings.title)}&subtitle=${encodeURIComponent(settings.subtitle)}&titleColor=${encodeURIComponent(settings.titleColor)}&subtitleColor=${encodeURIComponent(settings.subtitleColor)}&v=${snapshotVersion}`;
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -380,7 +392,13 @@ function ProjectWall({ project, token, user, onLogout }) {
     const response = await fetch(`${API_BASE}/projects/${project.owner}/${project.repo}`);
     if (response.ok) {
       const data = await response.json();
-      if (data.settings) setSettings(data.settings);
+      if (data.settings) {
+        setSettings((prev) => ({
+          ...prev,
+          ...data.settings,
+          subtitle: data.settings.subtitle || `${project.owner}/${project.repo}`,
+        }));
+      }
       if (data.featured_ids) setFeaturedIds(data.featured_ids);
     }
   };
@@ -517,18 +535,27 @@ function ProjectWall({ project, token, user, onLogout }) {
     }
   };
 
-  const updateSettings = async (next) => {
+  const updateSettings = (next) => {
     setSettings(next);
+    setSnapshotLoading(true);
+    setSnapshotVersion((version) => version + 1);
     if (!token) return;
-    await fetch(`${API_BASE}/projects/${key}/settings`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(next),
-    });
+    if (patchTimerRef.current) clearTimeout(patchTimerRef.current);
+    patchTimerRef.current = setTimeout(async () => {
+      await fetch(`${API_BASE}/projects/${key}/settings`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(next),
+      });
+    }, 400);
   };
+
+  useEffect(() => {
+    setSnapshotLoading(true);
+  }, [snapshotUrl]);
 
   const handleDrag = (event, id) => {
     if (!arrange) return;
@@ -606,7 +633,8 @@ function ProjectWall({ project, token, user, onLogout }) {
               </div>
             </div>
             <div className="snapshot-preview">
-              <img src={snapshotUrl} alt="Wall snapshot" />
+              {snapshotLoading && <div className="snapshot-loading">Updating preview…</div>}
+              <img src={snapshotUrl} alt="Wall snapshot" onLoad={() => setSnapshotLoading(false)} />
             </div>
           </section>
 
@@ -657,22 +685,52 @@ function ProjectWall({ project, token, user, onLogout }) {
                   ))}
                 </div>
               </div>
-              <div className="custom-group">
-                <div className="custom-label">Background</div>
-                <div className="custom-options">
-                  {BACKGROUNDS.map((bg) => (
-                    <button
-                      key={bg.id}
-                      className={`pill-btn ${settings.background === bg.id ? 'active' : ''}`}
-                      onClick={() => updateSettings({ ...settings, background: bg.id })}
-                    >
-                      {bg.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+          <div className="custom-group">
+            <div className="custom-label">Background</div>
+            <div className="custom-options">
+              {BACKGROUNDS.map((bg) => (
+                <button
+                  key={bg.id}
+                  className={`pill-btn ${settings.background === bg.id ? 'active' : ''}`}
+                  onClick={() => updateSettings({ ...settings, background: bg.id })}
+                >
+                  {bg.label}
+                </button>
+              ))}
             </div>
-          </section>
+          </div>
+          <div className="custom-group">
+            <div className="custom-label">Title</div>
+            <div className="custom-options">
+              <input
+                className="text-input"
+                value={settings.title}
+                onChange={(event) => updateSettings({ ...settings, title: event.target.value })}
+              />
+              <input
+                type="color"
+                value={settings.titleColor}
+                onChange={(event) => updateSettings({ ...settings, titleColor: event.target.value })}
+              />
+            </div>
+          </div>
+          <div className="custom-group">
+            <div className="custom-label">Subtitle</div>
+            <div className="custom-options">
+              <input
+                className="text-input"
+                value={settings.subtitle}
+                onChange={(event) => updateSettings({ ...settings, subtitle: event.target.value })}
+              />
+              <input
+                type="color"
+                value={settings.subtitleColor}
+                onChange={(event) => updateSettings({ ...settings, subtitleColor: event.target.value })}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
 
           <section className="stats">
             <div className="stat-card">

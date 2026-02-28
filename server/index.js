@@ -119,8 +119,8 @@ function buildSnapshotSvg({ owner, repo, kudos, settings }) {
   const base = backgrounds[background] || backgrounds.sunset;
   const bgStart = theme === 'midnight' ? '#0f141a' : base[0];
   const bgEnd = theme === 'midnight' ? '#1a1f26' : base[1];
-  const textMain = theme === 'midnight' ? '#f5f5f5' : '#161515';
-  const textSub = theme === 'midnight' ? '#c5c5c5' : '#5d5a56';
+  const textMain = settings?.titleColor || (theme === 'midnight' ? '#f5f5f5' : '#161515');
+  const textSub = settings?.subtitleColor || (theme === 'midnight' ? '#c5c5c5' : '#5d5a56');
   const cardFill = theme === 'midnight' ? '#171c22' : '#ffffff';
   const cardStroke = theme === 'midnight' ? '#2a313a' : '#E2DBD3';
 
@@ -167,8 +167,8 @@ function buildSnapshotSvg({ owner, repo, kudos, settings }) {
     </defs>
     <rect width="100%" height="100%" fill="url(#bg)" />
     <rect width="100%" height="100%" fill="url(#grid)" opacity="0.08" />
-    <text x="60" y="72" font-family="'Fraunces', Georgia" font-size="36" fill="${textMain}">PR Gratitude Wall</text>
-    <text x="60" y="104" font-family="'Space Grotesk', Arial" font-size="18" fill="${textSub}">${escapeXml(owner)}/${escapeXml(repo)}</text>
+    <text x="60" y="72" font-family="'Fraunces', Georgia" font-size="36" fill="${textMain}">${escapeXml(settings?.title || 'PR Gratitude Wall')}</text>
+    <text x="60" y="104" font-family="'Space Grotesk', Arial" font-size="18" fill="${textSub}">${escapeXml(settings?.subtitle || `${owner}/${repo}`)}</text>
     ${cards || `<text x="60" y="200" font-family="'Space Grotesk', Arial" font-size="16" fill="${textSub}">No kudos yet. Maintainers can add the first.</text>`}
   </svg>`;
 }
@@ -258,6 +258,10 @@ app.post('/projects/from-github', authMiddleware, async (req, res) => {
             accent: '#ff6a3d',
             layout: 'masonry',
             background: 'sunset',
+            title: 'PR Gratitude Wall',
+            subtitle: `${repoInfo.owner.login}/${repoInfo.name}`,
+            titleColor: '#161515',
+            subtitleColor: '#5d5a56',
           },
           featured_ids: [],
         },
@@ -315,7 +319,7 @@ app.get('/projects/:owner/:repo', async (req, res) => {
 
 app.patch('/projects/:owner/:repo/settings', authMiddleware, async (req, res) => {
   const { owner, repo } = req.params;
-  const { theme, accent, layout, background } = req.body || {};
+  const { theme, accent, layout, background, title, subtitle, titleColor, subtitleColor } = req.body || {};
   const project = await projectsCollection.findOne({ owner, repo });
   if (!project) return res.status(404).json({ error: 'Project not found.' });
 
@@ -330,6 +334,10 @@ app.patch('/projects/:owner/:repo/settings', authMiddleware, async (req, res) =>
     accent: accent || project.settings?.accent || '#ff6a3d',
     layout: layout || project.settings?.layout || 'masonry',
     background: background || project.settings?.background || 'sunset',
+    title: title || project.settings?.title || 'PR Gratitude Wall',
+    subtitle: subtitle || project.settings?.subtitle || `${owner}/${repo}`,
+    titleColor: titleColor || project.settings?.titleColor || '#161515',
+    subtitleColor: subtitleColor || project.settings?.subtitleColor || '#5d5a56',
   };
 
   await projectsCollection.updateOne(
@@ -434,11 +442,22 @@ app.get('/projects/:owner/:repo/snapshot.svg', async (req, res) => {
     .limit(10)
     .toArray();
 
+  const override = {
+    theme: req.query.theme,
+    accent: req.query.accent,
+    background: req.query.background,
+    title: req.query.title,
+    subtitle: req.query.subtitle,
+    titleColor: req.query.titleColor,
+    subtitleColor: req.query.subtitleColor,
+  };
+  const settings = { ...(project.settings || {}), ...Object.fromEntries(Object.entries(override).filter(([, value]) => value)) };
+
   const svg = buildSnapshotSvg({
     owner,
     repo,
     kudos: [...featuredRows, ...remainingRows].slice(0, 10),
-    settings: project.settings || null,
+    settings,
   });
   res.set('Content-Type', 'image/svg+xml');
   res.send(svg);

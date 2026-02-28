@@ -777,6 +777,22 @@ textarea {
   margin-top: 12px;
 }
 
+.snapshot-preview {
+  position: relative;
+}
+
+.snapshot-loading {
+  position: absolute;
+  inset: 12px;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  color: var(--muted);
+  backdrop-filter: blur(6px);
+}
+
 .customize {
   background: #fff;
   border-radius: 22px;
@@ -824,6 +840,13 @@ textarea {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.text-input {
+  border-radius: 10px;
+  border: 1px solid var(--stroke);
+  padding: 8px 12px;
+  min-width: 200px;
 }
 
 .pill-btn {
