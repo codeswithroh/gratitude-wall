@@ -584,17 +584,20 @@ textarea {
   gap: 16px;
   flex-wrap: wrap;
   font-size: 0.85rem;
-  color: rgba(245, 245, 245, 0.5);
 }
 
 .step {
-  padding-bottom: 8px;
-  border-bottom: 2px solid rgba(245, 245, 245, 0.2);
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(245, 245, 245, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .step.active {
-  color: #fff;
-  border-bottom-color: var(--accent, #4e9eff);
+  color: #0f141a;
+  background: #f5f5f5;
+  border-color: rgba(255, 255, 255, 0.8);
 }
 
 .repo-stage-title {
