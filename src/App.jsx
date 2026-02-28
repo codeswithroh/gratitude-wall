@@ -123,24 +123,66 @@ function Hero({ onConnect, user }) {
   );
 }
 
-function AuthCallback({ onToken }) {
+function AuthCallback({ onToken, onConnect }) {
+  const [status, setStatus] = useState({ state: 'working', message: 'Securing your session…' });
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
+    const token = params.get('token') || params.get('access_token');
     const error = params.get('error');
     if (token) {
       localStorage.setItem('gratitude_token', token);
       onToken(token);
       window.history.replaceState({}, '', '/');
-    } else if (error) {
-      window.history.replaceState({}, '', '/');
+      return;
     }
+    if (error) {
+      setStatus({ state: 'error', message: decodeURIComponent(error) });
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      setStatus({
+        state: 'error',
+        message: 'Still waiting on GitHub. This usually means the backend callback failed or was blocked.',
+      });
+    }, 6000);
+
+    return () => clearTimeout(timeout);
   }, [onToken]);
 
   return (
-    <div className="center-box">
-      <h2>Connecting your GitHub…</h2>
-      <p>Hang tight, we are securing your session.</p>
+    <div className="loading-shell">
+      <div className="loading-card">
+        <div className="loading-orbit">
+          <div className="orbit-ring"></div>
+          <div className="orbit-dot"></div>
+          <div className="orbit-dot two"></div>
+        </div>
+        <h2>Connecting your GitHub…</h2>
+        <p>{status.message}</p>
+        {status.state === 'working' ? (
+          <div className="loading-steps">
+            <span className="step">Verifying OAuth</span>
+            <span className="step">Confirming maintainer access</span>
+            <span className="step">Preparing your wall</span>
+          </div>
+        ) : (
+          <div className="loading-actions">
+            <button className="primary" onClick={onConnect}>Try again</button>
+            <a className="ghost" href="/">Back to home</a>
+          </div>
+        )}
+      </div>
+      <div className="loading-grid">
+        {Array.from({ length: 8 }).map((_, index) => (
+          <div key={index} className="loading-tile">
+            <div className="tile-line"></div>
+            <div className="tile-line short"></div>
+            <div className="tile-chip"></div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -545,7 +587,7 @@ function App() {
   };
 
   if (path.startsWith('/auth/callback')) {
-    return <AuthCallback onToken={setToken} />;
+    return <AuthCallback onToken={setToken} onConnect={handleConnect} />;
   }
 
   return (
