@@ -25,6 +25,13 @@ const LAYOUTS = [
   { id: 'compact', label: 'Compact' },
 ];
 
+const BACKGROUNDS = [
+  { id: 'sunset', label: 'Sunset' },
+  { id: 'ocean', label: 'Ocean' },
+  { id: 'paper', label: 'Paper' },
+  { id: 'neon', label: 'Neon' },
+];
+
 function formatDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
@@ -353,7 +360,7 @@ function ProjectWall({ project, token, user, onLogout }) {
   const [form, setForm] = useState({ name: '', handle: '', tag: 'docs', message: '' });
   const [arrange, setArrange] = useState(false);
   const [order, setOrder] = useState([]);
-  const [settings, setSettings] = useState({ theme: 'warm', accent: '#ff6a3d', layout: 'masonry' });
+  const [settings, setSettings] = useState({ theme: 'warm', accent: '#ff6a3d', layout: 'masonry', background: 'sunset' });
   const [featuredIds, setFeaturedIds] = useState([]);
 
   const key = `${project.owner}/${project.repo}`;
@@ -552,7 +559,8 @@ function ProjectWall({ project, token, user, onLogout }) {
   };
 
   return (
-    <div className={`project wall-theme-${settings.theme}`}
+    <div
+      className={`project wall-theme-${settings.theme} wall-bg-${settings.background}`}
       style={{ '--accent': settings.accent }}
     >
       <header className="project-hero">
@@ -636,6 +644,20 @@ function ProjectWall({ project, token, user, onLogout }) {
                   onClick={() => updateSettings({ ...settings, layout: layout.id })}
                 >
                   {layout.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="custom-group">
+            <div className="custom-label">Background</div>
+            <div className="custom-options">
+              {BACKGROUNDS.map((bg) => (
+                <button
+                  key={bg.id}
+                  className={`pill-btn ${settings.background === bg.id ? 'active' : ''}`}
+                  onClick={() => updateSettings({ ...settings, background: bg.id })}
+                >
+                  {bg.label}
                 </button>
               ))}
             </div>

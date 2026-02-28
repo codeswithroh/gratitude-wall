@@ -488,6 +488,30 @@ textarea {
   gap: 40px;
 }
 
+.project.wall-bg-sunset {
+  background: linear-gradient(160deg, #fff2e9 0%, #f9efe4 60%, #fff 100%);
+  border-radius: 28px;
+  padding: 24px;
+}
+
+.project.wall-bg-ocean {
+  background: linear-gradient(160deg, #d8f3ff 0%, #f0fbff 70%, #fff 100%);
+  border-radius: 28px;
+  padding: 24px;
+}
+
+.project.wall-bg-paper {
+  background: radial-gradient(circle at top, #fbf7f2 0%, #f3e9de 80%);
+  border-radius: 28px;
+  padding: 24px;
+}
+
+.project.wall-bg-neon {
+  background: radial-gradient(circle at top, rgba(111, 92, 255, 0.2) 0%, rgba(16, 18, 26, 0.95) 60%);
+  border-radius: 28px;
+  padding: 24px;
+}
+
 .project.wall-theme-midnight {
   --card: #171c22;
   --stroke: #2a313a;

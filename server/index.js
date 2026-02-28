@@ -109,8 +109,16 @@ function buildSnapshotSvg({ owner, repo, kudos, settings }) {
   const offsetY = 150;
   const theme = settings?.theme || 'warm';
   const accent = settings?.accent || '#ff6a3d';
-  const bgStart = theme === 'midnight' ? '#0f141a' : '#FFF0E6';
-  const bgEnd = theme === 'midnight' ? '#1a1f26' : '#F6F3EF';
+  const background = settings?.background || 'sunset';
+  const backgrounds = {
+    sunset: ['#FFF0E6', '#F6F3EF'],
+    ocean: ['#DDF3FF', '#F3FBFF'],
+    paper: ['#FBF7F2', '#F3E9DE'],
+    neon: ['#1b1b2f', '#25274d'],
+  };
+  const base = backgrounds[background] || backgrounds.sunset;
+  const bgStart = theme === 'midnight' ? '#0f141a' : base[0];
+  const bgEnd = theme === 'midnight' ? '#1a1f26' : base[1];
   const textMain = theme === 'midnight' ? '#f5f5f5' : '#161515';
   const textSub = theme === 'midnight' ? '#c5c5c5' : '#5d5a56';
   const cardFill = theme === 'midnight' ? '#171c22' : '#ffffff';
@@ -126,12 +134,18 @@ function buildSnapshotSvg({ owner, repo, kudos, settings }) {
     const message = escapeXml(entry.message || 'Thanks for your contributions!');
     const tag = escapeXml(entry.tag || 'community');
     const initials = escapeXml((entry.name || 'C').slice(0, 2).toUpperCase());
+    const avatar = entry.avatar_url ? escapeXml(entry.avatar_url) : '';
 
     return `
       <g>
         <rect x="${x}" y="${y}" rx="18" ry="18" width="${cardWidth}" height="${cardHeight}" fill="${cardFill}" stroke="${cardStroke}" />
-        <circle cx="${x + 28}" cy="${y + 36}" r="16" fill="${accent}" opacity="0.9" />
-        <text x="${x + 28}" y="${y + 41}" text-anchor="middle" font-family="'Space Grotesk', Arial" font-size="12" fill="#ffffff" font-weight="700">${initials}</text>
+        <defs>
+          <clipPath id="clip-${index}">
+            <circle cx="${x + 28}" cy="${y + 36}" r="16" />
+          </clipPath>
+        </defs>
+        ${avatar ? `<image href="${avatar}" x="${x + 12}" y="${y + 20}" width="32" height="32" clip-path="url(#clip-${index})" />` : `<circle cx="${x + 28}" cy="${y + 36}" r="16" fill="${accent}" opacity="0.9" />
+        <text x="${x + 28}" y="${y + 41}" text-anchor="middle" font-family="'Space Grotesk', Arial" font-size="12" fill="#ffffff" font-weight="700">${initials}</text>`}
         <text x="${x + 56}" y="${y + 36}" font-family="'Space Grotesk', Arial" font-size="20" fill="${textMain}" font-weight="600">${name}</text>
         <text x="${x + 56}" y="${y + 62}" font-family="'Space Grotesk', Arial" font-size="14" fill="${textSub}">${handle}</text>
         <text x="${x + 20}" y="${y + 92}" font-family="'Space Grotesk', Arial" font-size="14" fill="${textMain}">${message.slice(0, 40)}${message.length > 40 ? '…' : ''}</text>
@@ -147,8 +161,12 @@ function buildSnapshotSvg({ owner, repo, kudos, settings }) {
         <stop offset="0%" stop-color="${bgStart}" />
         <stop offset="100%" stop-color="${bgEnd}" />
       </linearGradient>
+      <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="${theme === 'midnight' ? '#ffffff' : '#161515'}" stroke-width="0.6" />
+      </pattern>
     </defs>
     <rect width="100%" height="100%" fill="url(#bg)" />
+    <rect width="100%" height="100%" fill="url(#grid)" opacity="0.08" />
     <text x="60" y="72" font-family="'Fraunces', Georgia" font-size="36" fill="${textMain}">PR Gratitude Wall</text>
     <text x="60" y="104" font-family="'Space Grotesk', Arial" font-size="18" fill="${textSub}">${escapeXml(owner)}/${escapeXml(repo)}</text>
     ${cards || `<text x="60" y="200" font-family="'Space Grotesk', Arial" font-size="16" fill="${textSub}">No kudos yet. Maintainers can add the first.</text>`}
@@ -239,6 +257,7 @@ app.post('/projects/from-github', authMiddleware, async (req, res) => {
             theme: 'warm',
             accent: '#ff6a3d',
             layout: 'masonry',
+            background: 'sunset',
           },
           featured_ids: [],
         },
@@ -257,6 +276,7 @@ app.post('/projects/from-github', authMiddleware, async (req, res) => {
         handle: `@${contrib.login}`,
         tag: 'community',
         message: `Top contributor with ${contrib.contributions} contributions. Thank you!`,
+        avatar_url: contrib.avatar_url,
         boosts: 0,
         created_at: new Date(),
       }));
@@ -295,7 +315,7 @@ app.get('/projects/:owner/:repo', async (req, res) => {
 
 app.patch('/projects/:owner/:repo/settings', authMiddleware, async (req, res) => {
   const { owner, repo } = req.params;
-  const { theme, accent, layout } = req.body || {};
+  const { theme, accent, layout, background } = req.body || {};
   const project = await projectsCollection.findOne({ owner, repo });
   if (!project) return res.status(404).json({ error: 'Project not found.' });
 
@@ -309,6 +329,7 @@ app.patch('/projects/:owner/:repo/settings', authMiddleware, async (req, res) =>
     theme: theme || project.settings?.theme || 'warm',
     accent: accent || project.settings?.accent || '#ff6a3d',
     layout: layout || project.settings?.layout || 'masonry',
+    background: background || project.settings?.background || 'sunset',
   };
 
   await projectsCollection.updateOne(
@@ -390,6 +411,7 @@ app.get('/projects/:owner/:repo/kudos', async (req, res) => {
     handle: row.handle,
     tag: row.tag,
     message: row.message,
+    avatar_url: row.avatar_url,
     boosts: row.boosts,
     created_at: row.created_at,
   })));
@@ -424,7 +446,7 @@ app.get('/projects/:owner/:repo/snapshot.svg', async (req, res) => {
 
 app.post('/projects/:owner/:repo/kudos', authMiddleware, async (req, res) => {
   const { owner, repo } = req.params;
-  const { name, handle = '', tag = 'docs', message } = req.body || {};
+  const { name, handle = '', tag = 'docs', message, avatar_url } = req.body || {};
   if (!name || !message) return res.status(400).json({ error: 'name and message required.' });
 
   const project = await projectsCollection.findOne({ owner, repo });
@@ -442,6 +464,7 @@ app.post('/projects/:owner/:repo/kudos', authMiddleware, async (req, res) => {
     handle: handle.slice(0, 40),
     tag: tag.slice(0, 30),
     message: message.slice(0, 400),
+    avatar_url: avatar_url ? avatar_url.slice(0, 300) : '',
     boosts: 0,
     created_at: new Date(),
   };
@@ -453,6 +476,7 @@ app.post('/projects/:owner/:repo/kudos', authMiddleware, async (req, res) => {
     handle: doc.handle,
     tag: doc.tag,
     message: doc.message,
+    avatar_url: doc.avatar_url,
     boosts: doc.boosts,
     created_at: doc.created_at,
   });
@@ -476,6 +500,7 @@ app.post('/projects/:owner/:repo/kudos/:id/boost', async (req, res) => {
     handle: updated.value.handle,
     tag: updated.value.tag,
     message: updated.value.message,
+    avatar_url: updated.value.avatar_url,
     boosts: updated.value.boosts,
     created_at: updated.value.created_at,
   });
