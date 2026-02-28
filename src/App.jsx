@@ -366,7 +366,7 @@ function ProjectWall({ project, token, user, onLogout }) {
 
   const key = `${project.owner}/${project.repo}`;
   const wallUrl = `${window.location.origin}/p/${project.owner}/${project.repo}`;
-  const snapshotUrl = `${API_BASE}/projects/${project.owner}/${project.repo}/snapshot.svg`;
+  const snapshotUrl = `${API_BASE}/projects/${project.owner}/${project.repo}/snapshot.svg?theme=${settings.theme}&accent=${encodeURIComponent(settings.accent)}&background=${settings.background}&layout=${settings.layout}`;
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
