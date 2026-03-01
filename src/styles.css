@@ -701,6 +701,15 @@ textarea {
   align-items: start;
 }
 
+.repo-creating {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  color: rgba(245, 245, 245, 0.8);
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
 .preview-card {
   background: #171f2a;
   border-radius: 18px;

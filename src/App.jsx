@@ -317,7 +317,10 @@ function RepoPicker({ token, onConnect, onCreateWall, creating, error, user, onL
                 <button
                   key={repo.full_name}
                   className={`repo-row ${selected?.full_name === repo.full_name ? 'active' : ''}`}
-                  onClick={() => setSelected(repo)}
+                  onClick={() => {
+                    setSelected(repo);
+                    onCreateWall(repo.owner, repo.repo);
+                  }}
                   type="button"
                 >
                   <div className="repo-row-main">
@@ -342,14 +345,9 @@ function RepoPicker({ token, onConnect, onCreateWall, creating, error, user, onL
               <div className="preview-line short"></div>
             </div>
           </div>
-          <button
-            className="primary"
-            onClick={() => selected && onCreateWall(selected.owner, selected.repo)}
-            disabled={creating || !selected}
-            style={{ justifySelf: 'start' }}
-          >
-            {creating ? 'Creating…' : 'Create Wall'}
-          </button>
+          {creating && (
+            <div className="repo-creating">Creating wall…</div>
+          )}
         </div>
       </div>
     </section>
