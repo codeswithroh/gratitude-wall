@@ -12,3 +12,8 @@
   to = "/index.html"
   status = 200
   force = true
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "img-src 'self' data: https://avatars.githubusercontent.com https://*.githubusercontent.com;"
