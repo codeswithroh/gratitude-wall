@@ -19,5 +19,5 @@ Backend:
 2. npm install
 3. npm run dev
 
-## Env
-Backend uses MongoDB. See `server/.env.example` for required vars. Frontend uses `VITE_API_URL`.
+## Thanks for your support
+![Gratitude Wall](https://gratitude-wall-production.up.railway.app/projects/codeswithroh/gratitude-wall/snapshot.svg?theme=warm&accent=%23ff6a3d&background=paper&layout=masonry&title=PR%20Gratitude%20Wall&subtitle=codeswithroh%2Fgratitude-wall&titleColor=%23161515&subtitleColor=%235d5a56&cardTextColor=%23161515&cardSubtextColor=%235d5a56&v=1)
