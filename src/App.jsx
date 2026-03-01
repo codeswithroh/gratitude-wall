@@ -1027,7 +1027,11 @@ function ProjectWall({ project, token, user, onLogout }) {
                               alt={entry.name}
                               loading="lazy"
                               referrerPolicy="no-referrer"
+                              onLoad={(event) => {
+                                event.currentTarget.parentElement?.classList.add('loaded');
+                              }}
                               onError={(event) => {
+                                event.currentTarget.parentElement?.classList.remove('loaded');
                                 event.currentTarget.style.display = 'none';
                               }}
                             />
