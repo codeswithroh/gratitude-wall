@@ -188,8 +188,13 @@ function AuthCallback({ onToken, onConnect }) {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const token = params.get('token') || params.get('access_token');
-    const error = params.get('error');
+    let token = params.get('token') || params.get('access_token');
+    let error = params.get('error');
+    if (!token && window.location.hash) {
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      token = hashParams.get('token') || hashParams.get('access_token') || token;
+      error = error || hashParams.get('error');
+    }
     if (token) {
       localStorage.setItem('gratitude_token', token);
       onToken(token);

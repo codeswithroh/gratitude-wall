@@ -223,8 +223,13 @@ app.get('/auth/github/callback', ensureAuthConfig, async (req, res) => {
 
     const redirect = typeof state === 'string' ? decodeURIComponent(state) : `${FRONTEND_URL}/auth/callback`;
     const redirectUrl = new URL(redirect);
+    // Include token in both query and hash to survive aggressive SPA rewrites.
     redirectUrl.searchParams.set('token', token);
     redirectUrl.searchParams.set('login', user.login);
+    redirectUrl.hash = new URLSearchParams({
+      token,
+      login: user.login,
+    }).toString();
     console.log('[auth/github/callback] redirecting to frontend', {
       redirect: redirectUrl.toString().split('token=')[0] + 'token=REDACTED',
     });
