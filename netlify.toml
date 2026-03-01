@@ -16,4 +16,4 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    Content-Security-Policy = "img-src 'self' data: https://avatars.githubusercontent.com https://*.githubusercontent.com;"
+    Content-Security-Policy = "img-src 'self' data: https://avatars.githubusercontent.com https://*.githubusercontent.com https://gratitude-wall-production.up.railway.app;"
