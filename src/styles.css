@@ -591,13 +591,13 @@ textarea {
   padding-top: 10px;
 }
 
-.step {
+.step-item {
   color: rgba(245, 245, 245, 0.55);
   font-weight: 600;
   text-align: left;
 }
 
-.step.active {
+.step-item.active {
   color: #f5f5f5;
 }
 
