@@ -57,6 +57,7 @@ body {
   background: radial-gradient(circle, rgba(255, 106, 61, 0.2), transparent 70%);
   top: -80px;
   right: -60px;
+  pointer-events: none;
 }
 
 .hero-top {
@@ -80,6 +81,8 @@ body {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+  position: relative;
+  z-index: 2;
 }
 
 .hero-grid {
