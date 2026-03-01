@@ -44,6 +44,15 @@ function formatDate(value) {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+function getInitials(name = '') {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join('') || 'C';
+}
+
 function useRoute() {
   const [path, setPath] = useState(window.location.pathname || '/');
 
@@ -1010,9 +1019,25 @@ function ProjectWall({ project, token, user, onLogout }) {
                     onDrop={(event) => handleDrop(event, entry.id)}
                   >
                     <div className="card-top">
-                      <div>
-                        <h3>{entry.name}</h3>
-                        <p className="card-handle">{entry.handle || 'Contributor'}</p>
+                      <div className="card-identity">
+                        <div className="card-avatar">
+                          {entry.avatar_url ? (
+                            <img
+                              src={entry.avatar_url}
+                              alt={entry.name}
+                              loading="lazy"
+                              referrerPolicy="no-referrer"
+                              onError={(event) => {
+                                event.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          ) : null}
+                          <span className="card-avatar-fallback">{getInitials(entry.name)}</span>
+                        </div>
+                        <div>
+                          <h3>{entry.name}</h3>
+                          <p className="card-handle">{entry.handle || 'Contributor'}</p>
+                        </div>
                       </div>
                       <span className="card-tag">#{entry.tag}</span>
                     </div>
