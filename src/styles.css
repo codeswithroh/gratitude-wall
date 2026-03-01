@@ -781,6 +781,44 @@ textarea {
   padding: 16px 0;
 }
 
+.repo-placeholder-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.repo-placeholder-card {
+  background: rgba(10, 15, 22, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.repo-placeholder-line {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(245, 245, 245, 0.16);
+}
+
+.repo-placeholder-line.short {
+  width: 70%;
+}
+
+.repo-placeholder-pill {
+  width: 72px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(245, 245, 245, 0.12);
+}
+
+.footer .heart {
+  color: #ff6a3d;
+  margin: 0 4px;
+}
+
 .share-link {
   background: #fff;
   border-radius: 22px;
@@ -1128,6 +1166,10 @@ textarea {
   }
 
   .link-row {
+    grid-template-columns: 1fr;
+  }
+
+  .repo-placeholder-grid {
     grid-template-columns: 1fr;
   }
 }

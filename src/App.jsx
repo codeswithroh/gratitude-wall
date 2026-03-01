@@ -327,7 +327,20 @@ function RepoPicker({ token, onConnect, onCreateWall, creating, error, user, onL
               {loading ? 'Refreshing…' : 'Refresh'}
             </button>
           </div>
-          {loading && <div className="repo-empty">Loading repos…</div>}
+          {loading && (
+            <>
+              <div className="repo-empty">Loading repos…</div>
+              <div className="repo-placeholder-grid">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <div key={index} className="repo-placeholder-card">
+                    <div className="repo-placeholder-line"></div>
+                    <div className="repo-placeholder-line short"></div>
+                    <div className="repo-placeholder-pill"></div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
           {!loading && token && (
             <div className="repo-list-dark">
               {filtered.slice(0, 10).map((repo) => (
@@ -349,7 +362,20 @@ function RepoPicker({ token, onConnect, onCreateWall, creating, error, user, onL
               ))}
             </div>
           )}
-          {!token && <div className="repo-empty">Connect GitHub to see your repositories.</div>}
+          {!token && (
+            <>
+              <div className="repo-empty">Connect GitHub to see your repositories.</div>
+              <div className="repo-placeholder-grid">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <div key={index} className="repo-placeholder-card">
+                    <div className="repo-placeholder-line"></div>
+                    <div className="repo-placeholder-line short"></div>
+                    <div className="repo-placeholder-pill"></div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
           {error && <div className="error">{error}</div>}
         </div>
 
@@ -1081,7 +1107,7 @@ function App() {
         <ProjectWall project={project} token={token} user={user} onLogout={logout} />
       )}
       <footer className="footer">
-        <div>Project‑scoped gratitude walls for open‑source maintainers.</div>
+        <div>Made with <span className="heart" aria-hidden="true">♥</span> by Rohit</div>
       </footer>
     </div>
   );
