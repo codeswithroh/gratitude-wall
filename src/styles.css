@@ -643,6 +643,7 @@ textarea {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   gap: 24px;
+  min-height: 60vh;
 }
 
 .repo-panel {
@@ -651,6 +652,7 @@ textarea {
   padding: 20px;
   display: grid;
   gap: 16px;
+  grid-template-rows: auto 1fr auto;
 }
 
 .repo-toolbar {
@@ -685,6 +687,8 @@ textarea {
 .repo-list-dark {
   display: grid;
   gap: 10px;
+  overflow-y: auto;
+  padding-right: 6px;
 }
 
 .repo-row {
