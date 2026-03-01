@@ -336,19 +336,11 @@ function RepoPicker({ token, onConnect, onCreateWall, creating, error, user, onL
           {error && <div className="error">{error}</div>}
         </div>
 
-        <div className="repo-preview">
-          <div className="preview-card">
-            <div className="preview-hero"></div>
-            <div className="preview-lines">
-              <div className="preview-line"></div>
-              <div className="preview-line"></div>
-              <div className="preview-line short"></div>
-            </div>
-          </div>
-          {creating && (
+        {creating && (
+          <div className="repo-preview">
             <div className="repo-creating">Creating wall…</div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </section>
   );
