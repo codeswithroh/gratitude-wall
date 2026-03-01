@@ -331,7 +331,7 @@ function RepoPicker({ token, onConnect, onCreateWall, creating, error, user, onL
             <>
               <div className="repo-empty">Loading repos…</div>
               <div className="repo-placeholder-grid">
-                {Array.from({ length: 6 }).map((_, index) => (
+                {Array.from({ length: 8 }).map((_, index) => (
                   <div key={index} className="repo-placeholder-card">
                     <div className="repo-placeholder-line"></div>
                     <div className="repo-placeholder-line short"></div>
@@ -366,7 +366,7 @@ function RepoPicker({ token, onConnect, onCreateWall, creating, error, user, onL
             <>
               <div className="repo-empty">Connect GitHub to see your repositories.</div>
               <div className="repo-placeholder-grid">
-                {Array.from({ length: 6 }).map((_, index) => (
+                {Array.from({ length: 8 }).map((_, index) => (
                   <div key={index} className="repo-placeholder-card">
                     <div className="repo-placeholder-line"></div>
                     <div className="repo-placeholder-line short"></div>
