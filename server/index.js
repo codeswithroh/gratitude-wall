@@ -182,12 +182,25 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 app.get('/auth/github', ensureAuthConfig, (req, res) => {
   const redirect = encodeURIComponent(`${FRONTEND_URL}/auth/callback`);
   const url = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&scope=repo&redirect_uri=${encodeURIComponent(`${BACKEND_URL}/auth/github/callback`)}&state=${redirect}`;
+  console.log('[auth/github] redirecting to GitHub OAuth', {
+    frontend: FRONTEND_URL,
+    backend: BACKEND_URL,
+  });
   res.redirect(url);
 });
 
 app.get('/auth/github/callback', ensureAuthConfig, async (req, res) => {
   try {
     const { code, state } = req.query;
+    console.log('[auth/github/callback] received', {
+      hasCode: Boolean(code),
+      codeLength: typeof code === 'string' ? code.length : null,
+      hasState: Boolean(state),
+      stateLength: typeof state === 'string' ? state.length : null,
+    });
+    if (!code) {
+      console.warn('[auth/github/callback] missing code');
+    }
     const accessToken = await exchangeCode(code);
     const profile = await githubRequest('/user', accessToken);
 
@@ -212,8 +225,12 @@ app.get('/auth/github/callback', ensureAuthConfig, async (req, res) => {
     const redirectUrl = new URL(redirect);
     redirectUrl.searchParams.set('token', token);
     redirectUrl.searchParams.set('login', user.login);
+    console.log('[auth/github/callback] redirecting to frontend', {
+      redirect: redirectUrl.toString().split('token=')[0] + 'token=REDACTED',
+    });
     res.redirect(redirectUrl.toString());
   } catch (err) {
+    console.error('[auth/github/callback] failed', err?.message || err);
     res.redirect(`${FRONTEND_URL}/auth/callback?error=${encodeURIComponent(err.message)}`);
   }
 });
