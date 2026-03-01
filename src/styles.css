@@ -698,6 +698,7 @@ textarea {
 .repo-preview {
   display: grid;
   gap: 16px;
+  align-items: start;
 }
 
 .preview-card {

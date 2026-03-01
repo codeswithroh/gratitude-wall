@@ -346,6 +346,7 @@ function RepoPicker({ token, onConnect, onCreateWall, creating, error, user, onL
             className="primary"
             onClick={() => selected && onCreateWall(selected.owner, selected.repo)}
             disabled={creating || !selected}
+            style={{ justifySelf: 'start' }}
           >
             {creating ? 'Creating…' : 'Create Wall'}
           </button>
