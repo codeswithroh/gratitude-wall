@@ -53,6 +53,36 @@ function getInitials(name = '') {
     .join('') || 'C';
 }
 
+function KudosAvatar({ name, avatarUrl }) {
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!avatarUrl) {
+      setLoaded(false);
+      return;
+    }
+    let active = true;
+    const img = new Image();
+    img.onload = () => {
+      if (active) setLoaded(true);
+    };
+    img.onerror = () => {
+      if (active) setLoaded(false);
+    };
+    img.src = avatarUrl;
+    return () => {
+      active = false;
+    };
+  }, [avatarUrl]);
+
+  return (
+    <div className={`card-avatar ${loaded ? 'loaded' : ''}`}>
+      {loaded && <img src={avatarUrl} alt={name} loading="lazy" />}
+      <span className="card-avatar-fallback">{getInitials(name)}</span>
+    </div>
+  );
+}
+
 function useRoute() {
   const [path, setPath] = useState(window.location.pathname || '/');
 
@@ -1020,24 +1050,7 @@ function ProjectWall({ project, token, user, onLogout }) {
                   >
                     <div className="card-top">
                       <div className="card-identity">
-                        <div className="card-avatar">
-                          {entry.avatar_url ? (
-                            <img
-                              src={entry.avatar_url}
-                              alt={entry.name}
-                              loading="lazy"
-                              referrerPolicy="no-referrer"
-                              onLoad={(event) => {
-                                event.currentTarget.parentElement?.classList.add('loaded');
-                              }}
-                              onError={(event) => {
-                                event.currentTarget.parentElement?.classList.remove('loaded');
-                                event.currentTarget.style.display = 'none';
-                              }}
-                            />
-                          ) : null}
-                          <span className="card-avatar-fallback">{getInitials(entry.name)}</span>
-                        </div>
+                        <KudosAvatar name={entry.name} avatarUrl={entry.avatar_url} />
                         <div>
                           <h3>{entry.name}</h3>
                           <p className="card-handle">{entry.handle || 'Contributor'}</p>
