@@ -279,7 +279,7 @@ function RepoPicker({ token, onConnect, onCreateWall, creating, error, user, onL
   return (
     <section className="repo-stage">
       <div className="repo-stage-header">
-        <div className="stepper">
+        <div className={`stepper ${selected ? 'step-3' : token ? 'step-2' : 'step-1'}`}>
           <div className="step active">1. Connect to Git provider</div>
           <div className={`step ${token ? 'active' : ''}`}>2. Select repository</div>
           <div className={`step ${selected ? 'active' : ''}`}>3. Configure wall</div>
