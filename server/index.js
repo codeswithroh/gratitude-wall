@@ -223,6 +223,10 @@ app.get('/auth/github/callback', ensureAuthConfig, async (req, res) => {
 
     const redirect = typeof state === 'string' ? decodeURIComponent(state) : `${FRONTEND_URL}/auth/callback`;
     const redirectUrl = new URL(redirect);
+    // If the frontend host rewrites /auth/callback to /, pre-empt by using root.
+    if (redirectUrl.pathname === '/auth/callback') {
+      redirectUrl.pathname = '/';
+    }
     // Include token in both query and hash to survive aggressive SPA rewrites.
     redirectUrl.searchParams.set('token', token);
     redirectUrl.searchParams.set('login', user.login);

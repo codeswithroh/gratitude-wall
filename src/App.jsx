@@ -73,6 +73,18 @@ function useAuth() {
   const [token, setToken] = useState(() => localStorage.getItem('gratitude_token') || '');
   const [user, setUser] = useState(null);
 
+  useEffect(() => {
+    if (token) return;
+    const query = new URLSearchParams(window.location.search);
+    const hash = window.location.hash ? new URLSearchParams(window.location.hash.replace(/^#/, '')) : null;
+    const nextToken = query.get('token') || query.get('access_token') || hash?.get('token') || hash?.get('access_token');
+    if (nextToken) {
+      localStorage.setItem('gratitude_token', nextToken);
+      setToken(nextToken);
+      window.history.replaceState({}, '', window.location.pathname || '/');
+    }
+  }, [token]);
+
   const loadMe = async (nextToken = token) => {
     if (!nextToken) return;
     const response = await fetch(`${API_BASE}/me`, {
